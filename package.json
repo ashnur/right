@@ -1,0 +1,16 @@
+{
+  "name": "right",
+  "version": "0.0.0",
+  "main": "right",
+  "dependencies": {
+    "nmbr": "*"
+    , "luma": "*"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "mocha -u bdd -R spec"
+    , "test-nmbr": "mocha -u bdd -R spec ./node_modules/nmbr/test/test.js"
+    , "test-prsr": "mocha -u bdd -R spec ./node_modules/prsr/test/test.js"
+  },
+  "license": "dafuq"
+}
