@@ -1,0 +1,11 @@
+{
+  "name": "piper",
+  "version": "0.0.0",
+  "description": "polynumbers",
+  "main": "index",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "totemizer",
+  "license": "dafuq"
+}
