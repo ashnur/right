@@ -1925,14 +1925,24 @@ void function(root){
         function ratjs() {}
 
         function tic(e) {
-            var result
+            var result, lines = '', i, reslen
+                , num
+                , den
+                ;
             try {
                 result = prsr(e.currentTarget.value + "\n")
             } catch (e) {
                 return document.getElementById('output').innerHTML = e.message
             }
 
-            return document.getElementById('output').innerHTML = JSON.stringify(result)
+            reslen = result.length
+            for ( i = 0; i < reslen ; i++ ) {
+                num = result[i][0]
+                den = result[i][1]
+                lines += '' + num + ( den !== 1 ? '/'+den : '' )
+                lines +='<br/>'
+            }
+            return document.getElementById('output').innerHTML = lines
         }
 
         ratjs.watch = function(id) {
