@@ -961,6 +961,407 @@ require.define("/node_modules/prsr/index.js",function(require,module,exports,__d
 module.exports = require('./lib/prsr');
 });
 
+require.define("/node_modules/prsr/lib/prsr.js",function(require,module,exports,__dirname,__filename,process){"use strict"
+void function(root){
+
+    var rat = require('rats')
+        , piper    = require('piper')
+        , ONE, ZERO
+        , defaults = {}
+        , rat, piper
+        , spce = require('spce')
+        , sybs = {}
+        , tkns = []
+        ;
+
+    function tokenize(input){
+        return tknzr.call(input)
+    }
+
+    function tknzr(){
+
+        if ( typeof this === "undefined" ||  this === null) {
+            return
+        }
+
+        var c, from, i=0
+            , length, n
+            , result = []
+            , str, _ref
+            ;
+
+        length = typeof this !== "undefined" && this !== null ? this.length : 0
+
+        function make(type, value){
+            return {
+                type: type,
+                value: value,
+                from: from,
+                to: i,
+                toString: function(){
+                    return value.toString()
+                }
+            }
+        }
+
+        c = this.charAt(i)
+
+        while ( c ) {
+            from = i
+            if ( c === ' ' ) {
+                i += 1
+                c = this.charAt(i)
+            } else if ( /[a-zA-Z]/.test(c) ) {
+                str = c
+                i += 1
+                while ( true ) {
+                    c = this.charAt(i)
+                    if ( /[0-9a-zA-Z]/.test(c) ) {
+                        str += c
+                        i += 1
+                    } else {
+                        break
+                    }
+                }
+                result.push(make('var', str))
+            } else if ( /[0-9]/.test(c) ) {
+                str = c
+                i += 1
+                while ( true ) {
+                    c = this.charAt(i)
+                    if ( !/[0-9]/.test(c) ) {
+                        break
+                    }
+                    i += 1
+                    str += c
+                }
+                if ( /[a-zA-Z]/.test(c) ) {
+                    str += c
+                    i += 1
+                    throw 'Bad number'
+                }
+                n = parseInt(str)
+                if ( isFinite(n) ) {
+                    result.push(make('number', n))
+                } else {
+                    throw 'Bad number'
+                }
+            } else {
+                i += 1
+                result.push(make('operator', c))
+                c = this.charAt(i)
+            }
+        }
+        return result
+    }
+
+    function sybl(token, lvl) {
+        var x;
+        if (lvl == null) {
+            lvl = 1
+        }
+        this.lvl = lvl
+        this.toString = token.toString
+        x = extend(token, this)
+        return x
+    }
+
+
+    function symblzr(token, lvl, slv) {
+        var s, type, value;
+        s = this[token.toString()]
+        if ( s == null ) {
+            s = new sybl(token, lvl)
+            value = s != null ? s.toString() : void 0
+            type = s != null ? s.type : void 0
+            if ( type === 'var' ) {
+                s = variable(value)
+                s.lvl = 1
+            } else if ( type === 'operator' ) {
+                s.slv = (slv != null) ? slv : (function() {
+                    console.error(this)
+                    throw new Error('undefined operator')
+                })
+            } else if ( type === 'number' ) {
+                s = rat(value)
+                s.lvl = 1
+            }
+            this[token.toString()] = s
+        }
+        return s
+    }
+
+    function ct(str){
+        var t;
+        t = tokenize(str)
+        if (str.length < 2) {
+            return t[0]
+        } else {
+            return t
+        }
+    }
+
+    function literal(tok){
+        var ctok, r;
+        if (typeof tok === 'string') {
+            ctok = ct(tok.toString())
+        } else {
+            ctok = tok
+        }
+        r = symblzr.call(sybs, ctok, 1, (function(right) {
+            return right
+        }))
+        return r
+    }
+
+    ZERO = literal("0")
+
+    ONE = literal("1")
+
+    symblzr.call(defaults, ct("\n"), -1, (function(l, r) {
+        if (l == null) {
+            l = ZERO
+        }
+        return literal(l)
+    }))
+
+    symblzr.call(defaults, ct("+"), 2, (function(l, r) {
+        if (l == null) {
+            l = ZERO
+        }
+        if (r == null) {
+            r = ZERO
+        }
+        return literal(l.plus(r))
+    }))
+
+    symblzr.call(defaults, ct("-"), 2, (function(l, r) {
+        var x;
+        if (l == null) {
+            l = ZERO
+        }
+        if (r == null) {
+            r = ZERO
+        }
+        x = literal(l.minus(r))
+        return x
+    }))
+
+    symblzr.call(defaults, ct("*"), 3, (function(l, r) {
+        if (l == null) {
+            l = ONE
+        }
+        if (r == null) {
+            r = ONE
+        }
+        return literal(l.times(r))
+    }))
+
+    symblzr.call(defaults, ct("/"), 3, (function(l, r) {
+        if (l == null) {
+            l = ONE
+        }
+        if (r == null) {
+            r = ONE
+        }
+        return literal(l.per(r))
+    }))
+
+    symblzr.call(defaults, ct("^"), 4, (function(l, r) {
+        if (l == null) {
+            l = ONE
+        }
+        if (r == null) {
+            r = ONE
+        }
+        return literal(piper([l]).pow(r.val()))
+    }))
+
+    symblzr.call(defaults, ct(")"), 0, (function(l) {
+        return literal(l)
+    }))
+
+    symblzr.call(defaults, ct("("), 10, (function(l,r){
+        var e = expr(0)
+        tkns.shift()
+        return e
+    }))
+
+    function symbolize(tokens){
+        var token, _i, _len;
+        sybs = extend({}, defaults)
+        for (_i = 0, _len = tokens.length; _i < _len; _i++) {
+            token = tokens[_i]
+            symblzr.call(sybs, token)
+        }
+        return sybs
+    }
+
+
+
+    function each(obj, iterator, context) {
+        if ( obj == null ) return
+        if ( obj.forEach === Array.prototype.forEach ) {
+            obj.forEach(iterator, context)
+        } else if ( obj.length === +obj.length ) {
+            for ( var i = 0, l = obj.length; i < l; i++ ) {
+                if ( iterator.call(context, obj[i], i, obj) === breaker ) return
+            }
+        } else {
+            for ( var key in obj ) {
+                if ( obj.hasOwnProperty(key) ) {
+                    if ( iterator.call(context, obj[key], key, obj) === breaker ) return;
+                }
+            }
+        }
+    }
+
+    function extend(obj) {
+        each(Array.prototype.slice.call(arguments, 1), function(source) {
+            for (var prop in source) {
+                obj[prop] = source[prop]
+            }
+        })
+        return obj
+    }
+    function w(i){
+        var key =  (tkns[i] != null) ? tkns[i].toString() : void 0
+        return sybs[key]
+    }
+
+    function c(i){
+        var key = tkns.splice(i, 1, null)[0]
+            ;
+        return sybs[key]
+    }
+
+    function x(i){
+        var key = tkns.splice(i, 1)[0]
+            ;
+        if ( key instanceof Int32Array ) {
+            return key
+        }
+        return sybs[key]
+    }
+
+    function g(i, o){
+        return tkns.splice(i, 1, o)
+    }
+
+    function t(i){
+        var _ref
+            ;
+        return (_ref = w(i)) != null ? _ref.type : void 0
+    }
+
+    function v(i){
+        var _ref, _ref1
+            ;
+        return (_ref = (_ref1 = w(i)) != null ? _ref1.lvl : void 0) != null ? _ref : Number.MIN_VALUE
+    }
+
+    function isop(i){
+        return t(i) === 'operator'
+    }
+
+    function unry(i){
+        var operator, rhs, lhs = null, ret, paren = false
+            ;
+        operator = c(i)
+        if ( operator.lvl === 10 ) {
+            if ( i === 1 ) lhs = tkns.shift()
+            tkns.shift()
+            rhs = null
+            paren = true
+        } else if ( v(i+1) === 10 ) {
+            if ( i === 1 ) lhs = tkns.shift()
+            tkns.shift()
+            rhs = expr(0)
+            tkns.shift()
+            paren = true
+        } else if ( ! isop(i + 1) ) {
+            rhs = x(i + 1)
+        } else {
+            rhs = null
+        }
+        if ( paren ) {
+            ret = tkns.splice(0, 0, operator.slv(null, rhs))
+            if ( lhs !== null ) tkns.splice(0, 0, lhs)
+        } else {
+            ret = g(i, operator.slv(null, rhs))
+        }
+        return ret
+    }
+
+    function expr(lvl){
+        var l, nextop, operator, r
+            ;
+        if ( tkns.length === 0 ) {
+            throw new Error('tkns array should not be empty')
+        }
+        if ( ! isop(0) ) {
+            l = x(0)
+        }
+        while ( isop(0) && v(0) > lvl ) {
+            if ( isop(1) ) {
+                unry(1)
+                if ( l == null ) {
+                    unry(0)
+                    l = x(0)
+                }
+            }
+            if ( isop(0) ) {
+                operator = x(0)
+                if ( operator.lvl === 10 ) {
+                } else {
+                    r = !isop(0) ? w(0) : null
+                    nextop = r != null ? 1 : 0
+                }
+                if ( v(nextop) <= operator.lvl ) {
+                    if (r != null) {
+                        x(0)
+                    }
+                    l = operator.slv(l, r)
+                } else {
+                    l = operator.slv(l, expr(operator.lvl))
+                }
+            }
+        }
+        return l
+    }
+
+    function parse(input){
+        var counter, e
+            ;
+        tkns = tokenize(input)
+        sybs = symbolize(tkns)
+        spce.del('input')
+        counter = 0
+        while ( tkns.length > 0 ) {
+            e = expr(-1)
+            spce.push('input', e)
+            if ( typeof tkns[0] !== 'undefined' ) {
+                if ( typeof sybs[tkns[0].value] !== 'undefined' ) {
+                    if ( sybs[tkns[0].value].lvl === -1 ) {
+                        tkns.shift()
+                    }
+                }
+            }
+            if (++counter > 100) {
+                throw new Error('possible infinite loop')
+            }
+        }
+        return spce.get('input')
+    }
+    if ( typeof module != 'undefined' && module.exports ) {
+        module.exports = parse
+    } else {
+        root.factory = parse
+    }
+
+}(this)
+});
+
 require.define("/node_modules/rats/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index"}});
 
 require.define("/node_modules/rats/index.js",function(require,module,exports,__dirname,__filename,process){// This file is just added for convenience so this repository can be
@@ -1514,108 +1915,6 @@ require.define("/node_modules/spce/lib/spce.js",function(require,module,exports,
 }(this)
 });
 
-require.define("/node_modules/tknzr/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"./index"}});
-
-require.define("/node_modules/tknzr/index.js",function(require,module,exports,__dirname,__filename,process){// This file is just added for convenience so this repository can be
-// directly checked out into a project's deps folder
-module.exports = require('./lib/tknzr');
-});
-
-require.define("/node_modules/tknzr/lib/tknzr.js",function(require,module,exports,__dirname,__filename,process){"use strict"
-void function(root){
-
-    function tokens(){
-
-        if ( typeof this === "undefined" ||  this === null) {
-            return
-        }
-
-        var c, from, i=0
-            , length, n
-            , result = []
-            , str, _ref
-            ;
-
-        length = typeof this !== "undefined" && this !== null ? this.length : 0
-
-        function make(type, value){
-            return {
-                type: type,
-                value: value,
-                from: from,
-                to: i,
-                toString: function(){
-                    return value.toString()
-                }
-            }
-        }
-
-        c = this.charAt(i)
-
-        while ( c ) {
-            from = i
-            if ( c === ' ' ) {
-                i += 1
-                c = this.charAt(i)
-            } else if ( /[a-zA-Z]/.test(c) ) {
-                str = c
-                i += 1
-                while ( true ) {
-                    c = this.charAt(i)
-                    if ( /[0-9a-zA-Z]/.test(c) ) {
-                        str += c
-                        i += 1
-                    } else {
-                        break
-                    }
-                }
-                result.push(make('var', str))
-            } else if ( /[0-9]/.test(c) ) {
-                str = c
-                i += 1
-                while ( true ) {
-                    c = this.charAt(i)
-                    if ( !/[0-9]/.test(c) ) {
-                        break
-                    }
-                    i += 1
-                    str += c
-                }
-                if ( /[a-zA-Z]/.test(c) ) {
-                    str += c
-                    i += 1
-                    throw 'Bad number'
-                }
-                n = parseInt(str)
-                if ( isFinite(n) ) {
-                    result.push(make('number', n))
-                } else {
-                    throw 'Bad number'
-                }
-            } else {
-                i += 1
-                result.push(make('operator', c))
-                c = this.charAt(i)
-            }
-        }
-        return result
-    }
-
-    function tknzr(){}
-
-    tknzr.tokenize = function(input){
-        return tokens.call(input)
-    }
-
-    if ( typeof module != 'undefined' && module.exports ) {
-        module.exports = tknzr
-    } else {
-        root.factory = tknzr
-    }
-
-}(this)
-});
-
 require.define("/right.js",function(require,module,exports,__dirname,__filename,process){"use strict"
 void function(root){
 
@@ -1656,324 +1955,4 @@ void function(root){
 }(this)
 });
 require("/right.js");
-
-require.define("/node_modules/prsr/lib/prsr.js",function(require,module,exports,__dirname,__filename,process){"use strict"
-void function(root){
-
-    var rat = require('rats')
-        , piper    = require('piper')
-        , ONE, ZERO
-        , defaults = {}, literal
-        , rat, tknzr, piper
-        , spce = require('spce')
-        , sybs = {}
-        , tkns = []
-        , tknzr = (require('tknzr')).tokenize
-        ;
-
-
-    function sybl(token, lvl) {
-        var x;
-        if (lvl == null) {
-            lvl = 1
-        }
-        this.lvl = lvl
-        this.toString = token.toString
-        x = extend(token, this)
-        return x
-    }
-
-
-    function symblzr(token, lvl, slv) {
-        var s, type, value;
-        s = this[token.toString()]
-        if ( s == null ) {
-            s = new sybl(token, lvl)
-            value = s != null ? s.toString() : void 0
-            type = s != null ? s.type : void 0
-            if ( type === 'var' ) {
-                s = variable(value)
-                s.lvl = 1
-            } else if ( type === 'operator' ) {
-                s.slv = (slv != null) ? slv : (function() {
-                    console.error(this)
-                    throw new Error('undefined operator')
-                })
-            } else if ( type === 'number' ) {
-                s = rat(value)
-                s.lvl = 1
-            }
-            this[token.toString()] = s
-        }
-        return s
-    }
-
-    function ct(str){
-        var t;
-        t = tknzr(str)
-        if (str.length < 2) {
-            return t[0]
-        } else {
-            return t
-        }
-    }
-
-    function literal(tok){
-        var ctok, r;
-        if (typeof tok === 'string') {
-            ctok = ct(tok.toString())
-        } else {
-            ctok = tok
-        }
-        r = symblzr.call(sybs, ctok, 1, (function(right) {
-            return right
-        }))
-        return r
-    }
-
-    ZERO = literal("0")
-
-    ONE = literal("1")
-
-    symblzr.call(defaults, ct("\n"), -1, (function(l, r) {
-        if (l == null) {
-            l = ZERO
-        }
-        return literal(l)
-    }))
-
-    symblzr.call(defaults, ct("+"), 2, (function(l, r) {
-        if (l == null) {
-            l = ZERO
-        }
-        if (r == null) {
-            r = ZERO
-        }
-        return literal(l.plus(r))
-    }))
-
-    symblzr.call(defaults, ct("-"), 2, (function(l, r) {
-        var x;
-        if (l == null) {
-            l = ZERO
-        }
-        if (r == null) {
-            r = ZERO
-        }
-        x = literal(l.minus(r))
-        return x
-    }))
-
-    symblzr.call(defaults, ct("*"), 3, (function(l, r) {
-        if (l == null) {
-            l = ONE
-        }
-        if (r == null) {
-            r = ONE
-        }
-        return literal(l.times(r))
-    }))
-
-    symblzr.call(defaults, ct("/"), 3, (function(l, r) {
-        if (l == null) {
-            l = ONE
-        }
-        if (r == null) {
-            r = ONE
-        }
-        return literal(l.per(r))
-    }))
-
-    symblzr.call(defaults, ct("^"), 4, (function(l, r) {
-        if (l == null) {
-            l = ONE
-        }
-        if (r == null) {
-            r = ONE
-        }
-        return literal(piper([l]).pow(r.val()))
-    }))
-
-    symblzr.call(defaults, ct(")"), 0, (function(l) {
-        return literal(l)
-    }))
-
-    symblzr.call(defaults, ct("("), 10, (function(l,r){
-        var e = expr(0)
-        tkns.shift()
-        return e
-    }))
-
-    function symbolize(tokens){
-        var token, _i, _len;
-        sybs = extend({}, defaults)
-        for (_i = 0, _len = tokens.length; _i < _len; _i++) {
-            token = tokens[_i]
-            symblzr.call(sybs, token)
-        }
-        return sybs
-    }
-
-
-
-    function each(obj, iterator, context) {
-        if ( obj == null ) return
-        if ( obj.forEach === Array.prototype.forEach ) {
-            obj.forEach(iterator, context)
-        } else if ( obj.length === +obj.length ) {
-            for ( var i = 0, l = obj.length; i < l; i++ ) {
-                if ( iterator.call(context, obj[i], i, obj) === breaker ) return
-            }
-        } else {
-            for ( var key in obj ) {
-                if ( obj.hasOwnProperty(key) ) {
-                    if ( iterator.call(context, obj[key], key, obj) === breaker ) return;
-                }
-            }
-        }
-    }
-
-    function extend(obj) {
-        each(Array.prototype.slice.call(arguments, 1), function(source) {
-            for (var prop in source) {
-                obj[prop] = source[prop]
-            }
-        })
-        return obj
-    }
-    function w(i){
-        var key =  (tkns[i] != null) ? tkns[i].toString() : void 0
-        return sybs[key]
-    }
-
-    function c(i){
-        var key = tkns.splice(i, 1, null)[0]
-            ;
-        return sybs[key]
-    }
-
-    function x(i){
-        var key = tkns.splice(i, 1)[0]
-            ;
-        if ( key instanceof Int32Array ) {
-            return key
-        }
-        return sybs[key]
-    }
-
-    function g(i, o){
-        return tkns.splice(i, 1, o)
-    }
-
-    function t(i){
-        var _ref
-            ;
-        return (_ref = w(i)) != null ? _ref.type : void 0
-    }
-
-    function v(i){
-        var _ref, _ref1
-            ;
-        return (_ref = (_ref1 = w(i)) != null ? _ref1.lvl : void 0) != null ? _ref : Number.MIN_VALUE
-    }
-
-    function isop(i){
-        return t(i) === 'operator'
-    }
-
-    function unry(i){
-        var operator, rhs, lhs = null, ret
-            ;
-        operator = c(i)
-        if ( operator.lvl === 10 ) {
-            if ( i === 1 ) lhs = tkns.shift()
-            tkns.shift()
-            rhs = null
-        } else if ( v(i+1) === 10 ) {
-            if ( i === 1 ) lhs = tkns.shift()
-            tkns.shift()
-            rhs = expr(0)
-        } else if ( ! isop(i + 1) ) {
-            rhs = x(i + 1)
-        } else {
-            rhs = null
-        }
-        if ( lhs !== null ) {
-            ret = tkns.splice(0, 0, operator.slv(null, rhs))
-            tkns.splice(0, 0, lhs)
-        } else {
-            ret = g(i, operator.slv(null, rhs))
-        }
-        return ret
-    }
-
-    function expr(lvl){
-        var l, nextop, operator, r
-            ;
-        if (tkns.length === 0) {
-            throw new Error('tkns array should not be empty')
-        }
-        if (!isop(0)) {
-            l = x(0)
-        }
-        while (isop(0) && v(0) > lvl) {
-            if (isop(1)) {
-                unry(1)
-                if ( l == null ) {
-                    unry(0)
-                    l = x(0)
-                }
-            }
-            if (isop(0)) {
-                operator = x(0)
-                if ( operator.lvl === 10 ) {
-                } else {
-                    r = !isop(0) ? w(0) : null
-                    nextop = r != null ? 1 : 0
-                }
-                if (v(nextop) <= operator.lvl) {
-                    if (r != null) {
-                        x(0)
-                    }
-                    l = operator.slv(l, r)
-                } else {
-                    l = operator.slv(l, expr(operator.lvl))
-                }
-            }
-        }
-        return l
-    }
-
-    function parse(input){
-        var counter, e
-            ;
-        tkns = tknzr(input)
-        sybs = symbolize(tkns)
-        spce.del('input')
-        counter = 0
-        while (tkns.length > 0) {
-            e = expr(-1)
-            spce.push('input', e)
-            if ( typeof tkns[0] !== 'undefined' ) {
-                if ( typeof sybs[tkns[0].value] !== 'undefined' ) {
-                    if ( sybs[tkns[0].value].lvl === -1 ) {
-                        tkns.shift()
-                    }
-                }
-            }
-            if (++counter > 100) {
-                throw new Error('possible infinite loop')
-            }
-        }
-        return spce.get('input')
-    }
-    if ( typeof module != 'undefined' && module.exports ) {
-        module.exports = parse
-    } else {
-        root.factory = parse
-    }
-
-}(this)
-});
-require("/node_modules/prsr/lib/prsr.js");
 })();
