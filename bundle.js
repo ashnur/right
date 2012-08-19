@@ -1296,14 +1296,11 @@ void function(root){
     function expr(lvl){
         var l, nextop, operator, r
             ;
-        if ( tkns.length === 0 ) {
-            throw new Error('tkns array should not be empty')
-        }
         if ( ! isop(0) ) {
             l = x(0)
         }
         while ( isop(0) && v(0) > lvl ) {
-            if ( isop(1) ) {
+            while ( isop(1) && v(0) !== 10 ) {
                 unry(1)
                 if ( l == null ) {
                     unry(0)
