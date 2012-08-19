@@ -11,7 +11,13 @@ void function(root){
         function ratjs() {}
 
         function tic(e) {
-            var result = prsr(e.currentTarget.value + "\n")
+            var result
+            try {
+                result = prsr(e.currentTarget.value + "\n")
+            } catch (e) {
+                return document.getElementById('output').innerHTML = e.message
+            }
+
             return document.getElementById('output').innerHTML = JSON.stringify(result)
         }
 
@@ -20,7 +26,6 @@ void function(root){
                 var elem;
                 elem = document.querySelectorAll('#' + id)[0]
                 if ( elem != null ) return bean.add(elem, 'keyup', tic)
-
             })
         }
 
