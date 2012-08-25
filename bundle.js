@@ -961,17 +961,29 @@ require.define("/node_modules/prsr/index.js",function(require,module,exports,__d
 module.exports = require('./lib/prsr')
 });
 
-require.define("/node_modules/prsr/lib/prsr.js",function(require,module,exports,__dirname,__filename,process){"use strict"
-void function(root){
+require.define("/node_modules/prsr/lib/prsr.js",function(require,module,exports,__dirname,__filename,process){void function(root){
+    "use strict"
 
-    var rat = require('rats')
-        , piper = require('piper')
+    var piper = require('piper')
         , ONE, ZERO
         , defaults = {}
         , spce = require('spce')
         , sybs = {}
         , tkns = []
+        , rat = require('rats')
         ;
+
+//    piper.polyrat.prototype.toString = function(){
+//        var pretty = function(c){return c[0]+(c[1]?'':'/'+c[1])}
+//            , r
+//            ;
+//        if ( this[1].length = 1 && this[1][0] == piper([1]) ) {
+//            r = '(['+this[0].map(pretty).join(',')+'])'
+//        } else {
+//            r = '(['+this[0].map(pretty).join(',')+']/['+this[1].map(pretty).join(',')+'])'
+//        }
+//        return r
+//    }
 
     function tokenize(input){
         return tknzr.call(input)
@@ -1078,7 +1090,7 @@ void function(root){
             value = s != null ? s.toString() : void 0
             type = s != null ? s.type : void 0
             if ( type === 'var' ) {
-                s = variable(value)
+                s = piper([0,1])
                 s.lvl = 1
             } else if ( type === 'operator' ) {
                 s.slv = (slv != null) ? slv : (function() {
@@ -1086,7 +1098,7 @@ void function(root){
                     throw new Error('undefined operator')
                 })
             } else if ( type === 'number' ) {
-                s = rat(value)
+                s = piper([value])
                 s.lvl = 1
             }
             this[token.toString()] = s
@@ -1109,7 +1121,7 @@ void function(root){
         var ctok, r
             ;
         if ( typeof tok === 'string' ) {
-            ctok = ct(tok.toString())
+            ctok = ct(tok)
         } else {
             ctok = tok
         }
@@ -1178,9 +1190,10 @@ void function(root){
             l = ONE
         }
         if ( r == null ) {
-            r = ONE
+            r = ZERO
         }
-        return literal(piper([l]).pow(r.val()))
+        //this is freakingly ugly
+        return literal(piper([l.pow(r[0][0][0])]))
     }))
 
     symblzr.call(defaults, ct(")"), 0, (function(l){
@@ -1194,6 +1207,11 @@ void function(root){
         return e
     }))
 
+    symblzr.call(defaults, ct("="), 11, (function(l,r){
+        if ( l == null || r == null ) throw new Error ('equations have two sides' )
+        return null
+    }))
+
     function symbolize(tokens){
         var token, i, len
             ;
@@ -1205,27 +1223,8 @@ void function(root){
         return sybs
     }
 
-    function each(obj, iterator, context){
-        if ( obj == null ) return
-        var i, key
-            ;
-        if ( obj.forEach === Array.prototype.forEach ) {
-            obj.forEach(iterator, context)
-        } else if ( obj.length === +obj.length ) {
-            for ( i = 0, l = obj.length; i < l; i++ ) {
-                if ( iterator.call(context, obj[i], i, obj) === breaker ) return
-            }
-        } else {
-            for ( key in obj ) {
-                if ( obj.hasOwnProperty(key) ) {
-                    if ( iterator.call(context, obj[key], key, obj) === breaker ) return;
-                }
-            }
-        }
-    }
-
     function extend(obj){
-        each(Array.prototype.slice.call(arguments, 1), function(source){
+        Array.prototype.forEach.call(Array.prototype.slice.call(arguments, 1), function(source){
             var prop
                 ;
             for ( prop in source ) {
@@ -1365,140 +1364,6 @@ void function(root){
 }(this)
 });
 
-require.define("/node_modules/rats/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index"}});
-
-require.define("/node_modules/rats/index.js",function(require,module,exports,__dirname,__filename,process){// This file is just added for convenience so this repository can be
-// directly checked out into a project's deps folder
-module.exports = require('./lib/rats');
-});
-
-require.define("/node_modules/rats/lib/rats.js",function(require,module,exports,__dirname,__filename,process){void function(root){
-
-    var numbers = {};
-
-    function isInt(input){
-        return typeof input !== 'object' && parseInt(input, 10) == input
-    }
-
-    function toIntValues(x){
-        if ( x > 0 ) {
-            return [x + 1, 1]
-        } else {
-            return [1, Math.abs(x) + 1]
-        }
-    }
-
-    function checkInput(input){
-        if ( input instanceof Int32Array && input.byteLength === 8 ) {
-            return input
-        }
-        return rat(input)
-    }
-
-    function gcd(a, b){
-        var t;
-        a = Math.abs(a)
-        b = Math.abs(b)
-        while (b > 0) {
-            t = b
-            b = a % b
-            a = t
-        }
-        return a
-    }
-
-    function hashify(){
-        var intvals = toIntValues(this[0])
-        return '('+intvals[0]+"\\"+intvals[1]+')/'+this[1]
-    }
-
-    function val(){
-        return this[0]/this[1]
-    }
-
-    function plus(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1]+x[0]*this[1], this[1]*x[1])
-    }
-
-    function minus(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1]-x[0]*this[1], this[1]*x[1])
-    }
-
-    function times(x){
-        x = checkInput(x)
-        return rat(this[0]*x[0], this[1]*x[1])
-    }
-
-    function per(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1], x[0]*this[1])
-    }
-
-    function rat(numerator, denominator){
-
-        var intvals, index, divisor;
-
-        if ( ! isInt(numerator) ) {
-            throw new Error('invalid argument '+numerator+' ('+(typeof numerator)+')')
-        } else if ( typeof numerator === 'string' ) {
-            numerator = parseInt(numerator, 10)
-        }
-
-        if ( ! isInt(denominator) ) {
-            denominator = 1
-        } else if ( typeof denominator === 'string' ) {
-            denominator = parseInt(denominator, 10)
-        }
-
-        if ( denominator == 0 ) {
-            throw new Error('the denominator must not equal 0')
-        }
-
-        divisor = gcd(numerator, denominator)
-        if ( Math.abs(divisor) > 1 ) {
-            numerator = numerator / divisor
-            denominator = denominator / divisor
-        }
-
-        if ( denominator < 0 ) {
-            numerator *= -1
-            denominator *= -1
-        }
-
-        intvals = toIntValues(numerator)
-        index = '('+intvals[0]+"\\"+intvals[1]+')/'+denominator
-
-        if ( typeof numbers[index] === 'undefined' ) {
-            numbers[index] = new Int32Array(2)
-            numbers[index][0] = numerator
-            numbers[index][1] = denominator
-            numbers[index].toString = hashify
-            numbers[index].val = val
-            numbers[index].plus = plus
-            numbers[index].minus = minus
-            numbers[index].times = times
-            numbers[index].per = per
-        }
-
-        return numbers[index]
-
-    }
-
-    rat.isInt = isInt
-    rat.checkInput = checkInput
-    rat.toIntValues = toIntValues
-
-    if ( typeof module !== 'undefined' && module.exports ) {
-        module.exports = rat
-    } else {
-        root.factory = rat
-    }
-
-}(this)
-});
-
 require.define("/node_modules/piper/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index"}});
 
 require.define("/node_modules/piper/index.js",function(require,module,exports,__dirname,__filename,process){// This file is just added for convenience so this repository can be
@@ -1506,8 +1371,8 @@ require.define("/node_modules/piper/index.js",function(require,module,exports,__
 module.exports = require('./lib/piper');
 });
 
-require.define("/node_modules/piper/lib/piper.js",function(require,module,exports,__dirname,__filename,process){"use strict"
-void function(root){
+require.define("/node_modules/piper/lib/piper.js",function(require,module,exports,__dirname,__filename,process){void function(root){
+    "use strict"
 
     var num, pns = {}, rat;
 
@@ -1639,7 +1504,7 @@ void function(root){
     function per(input, input2){
         var result
             , f = input instanceof polyrat
-            , s = input2 instanceof polyrat
+        , s = input2 instanceof polyrat
             , t = null
             ;
         if ( f && s ) {
@@ -1675,20 +1540,26 @@ void function(root){
     function val(input, input2){
         var n = piper([0]), d = piper([0]),len, i;
         if ( ! ( input2 instanceof polyrat ) ) {
-            input2 = piper(input2)
+            if ( Array.isArray(input2) ) {
+                input2 = piper(input2)
+            } else {
+                input2 = piper([input2])
+            }
         }
         len = input[0].length
         for ( i=0; i < len; i++ ) {
-            n = n.plus(piper([input[0][i]]).times(input2.pow(i)))
+            n = n.plus(piper([input[0][i]]).times(piper([input2.pow(i)])))
         }
         len = input[1].length
         for ( i=0; i < len; i++ ) {
-            d = d.plus(piper([input[1][i]]).times(input2.pow(i)))
+            d = d.plus(piper([input[1][i]]).times(piper([input2.pow(i)])))
         }
         return piper(n, d)
     }
 
     function polyrat(){}
+
+    polyrat.prototype.hashify = hashify
 
     polyrat.prototype.toString = hashify
 
@@ -1712,6 +1583,7 @@ void function(root){
         return per(minus(times(p, s), times(r, q)), times(q, s))
     }
     polyrat.prototype.times = function(input){
+
         var p = this[0]
             , q = this[1]
             , r = input[0]
@@ -1784,12 +1656,21 @@ void function(root){
         numerator = rtrim(numerator)
         denominator = rtrim(denominator)
 
-        if ( dd > 0 || Math.abs(denominator[0].val()) !== 1 ) {
-            divisor = gcd(numerator, denominator)
-            if ( Math.abs(degree(divisor[0])) > 0 || divisor[0][0] !== rat(1) ) {
-                numerator = divide(numerator, divisor[0])[0]
-                denominator = divide(denominator, divisor[0])[0]
+        if (  Math.abs(denominator[0].val()) !== 1 ) {
+            if ( dd > 0 ) {
+                divisor = gcd(numerator, denominator)
+                if ( Math.abs(degree(divisor[0])) > 0 || divisor[0][0] !== rat(1) ) {
+                    numerator = divide(numerator, divisor[0])[0]
+                    denominator = divide(denominator, divisor[0])[0]
+                }
+            } else if ( checkForZero(numerator) === 0 ) {
+                numerator = [numerator[0].per(denominator[0])]
+                denominator = [rat(1)]
             }
+        }
+
+        if (  Math.abs(numerator[0].val()) === 0 ) {
+            denominator = [rat(1)]
         }
 
         intvals = numerator.map(function(o){ return rat.toIntValues(o.val())})
@@ -1811,6 +1692,141 @@ void function(root){
         module.exports = piper
     else
         root.factory = piper
+
+}(this)
+});
+
+require.define("/node_modules/rats/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index"}});
+
+require.define("/node_modules/rats/index.js",function(require,module,exports,__dirname,__filename,process){// This file is just added for convenience so this repository can be
+// directly checked out into a project's deps folder
+module.exports = require('./lib/rats');
+});
+
+require.define("/node_modules/rats/lib/rats.js",function(require,module,exports,__dirname,__filename,process){void function(root){
+    "use strict"
+
+    var numbers = {};
+
+    function isInt(input){
+        return typeof input !== 'object' && parseInt(input, 10) == input
+    }
+
+    function toIntValues(x){
+        if ( x > 0 ) {
+            return [x + 1, 1]
+        } else {
+            return [1, Math.abs(x) + 1]
+        }
+    }
+
+    function checkInput(input){
+        if ( input instanceof Int32Array && input.byteLength === 8 ) {
+            return input
+        }
+        return rat(input)
+    }
+
+    function gcd(a, b){
+        var t;
+        a = Math.abs(a)
+        b = Math.abs(b)
+        while (b > 0) {
+            t = b
+            b = a % b
+            a = t
+        }
+        return a
+    }
+
+    function hashify(){
+        var intvals = toIntValues(this[0])
+        return '('+intvals[0]+"\\"+intvals[1]+')/'+this[1]
+    }
+
+    function val(){
+        return this[0]/this[1]
+    }
+
+    function plus(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1]+x[0]*this[1], this[1]*x[1])
+    }
+
+    function minus(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1]-x[0]*this[1], this[1]*x[1])
+    }
+
+    function times(x){
+        x = checkInput(x)
+        return rat(this[0]*x[0], this[1]*x[1])
+    }
+
+    function per(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1], x[0]*this[1])
+    }
+
+    function rat(numerator, denominator){
+
+        var intvals, index, divisor;
+
+        if ( ! isInt(numerator) ) {
+            throw new Error('invalid argument '+numerator+' ('+(typeof numerator)+')')
+        } else if ( typeof numerator === 'string' ) {
+            numerator = parseInt(numerator, 10)
+        }
+
+        if ( ! isInt(denominator) ) {
+            denominator = 1
+        } else if ( typeof denominator === 'string' ) {
+            denominator = parseInt(denominator, 10)
+        }
+
+        if ( denominator == 0 ) {
+            throw new Error('the denominator must not equal 0')
+        }
+
+        divisor = gcd(numerator, denominator)
+        if ( Math.abs(divisor) > 1 ) {
+            numerator = numerator / divisor
+            denominator = denominator / divisor
+        }
+
+        if ( denominator < 0 ) {
+            numerator *= -1
+            denominator *= -1
+        }
+
+        intvals = toIntValues(numerator)
+        index = '('+intvals[0]+"\\"+intvals[1]+')/'+denominator
+
+        if ( typeof numbers[index] === 'undefined' ) {
+            numbers[index] = new Int32Array(2)
+            numbers[index][0] = numerator
+            numbers[index][1] = denominator
+            numbers[index].toString = hashify
+            numbers[index].val = val
+            numbers[index].plus = plus
+            numbers[index].minus = minus
+            numbers[index].times = times
+            numbers[index].per = per
+        }
+
+        return numbers[index]
+
+    }
+
+    rat.isInt = isInt
+    rat.checkInput = checkInput
+    rat.toIntValues = toIntValues
+
+    if ( typeof module !== 'undefined' && module.exports ) {
+        module.exports = rat
+    } else {
+        root.factory = rat
+    }
 
 }(this)
 });
