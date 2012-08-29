@@ -1193,7 +1193,7 @@ require.define("/node_modules/prsr/lib/prsr.js",function(require,module,exports,
             r = ZERO
         }
         //this is freakingly ugly
-        return literal(piper([l.pow(r[0][0][0])]))
+        return literal(piper(l.pow(r[0][0][0])))
     }))
 
     symblzr.call(defaults, ct(")"), 0, (function(l){
@@ -1533,12 +1533,17 @@ require.define("/node_modules/piper/lib/piper.js",function(require,module,export
         } else {
             result = piper([1])
         }
-        if ( degree(input) === 0 ) result = result[0][0]
         return result
     }
 
     function val(input, input2){
-        var n = piper([0]), d = piper([0]),len, i;
+        var n = piper([0])
+            , d = piper([0])
+            , len
+            , i
+            , t1
+            , t2
+            ;
         if ( ! ( input2 instanceof polyrat ) ) {
             if ( Array.isArray(input2) ) {
                 input2 = piper(input2)
@@ -1548,11 +1553,15 @@ require.define("/node_modules/piper/lib/piper.js",function(require,module,export
         }
         len = input[0].length
         for ( i=0; i < len; i++ ) {
-            n = n.plus(piper([input[0][i]]).times(piper([input2.pow(i)])))
+            t1 = piper([input[0][i]])
+            t2 = piper(input2.pow(i))
+            n = n.plus(t1.times(t2))
         }
         len = input[1].length
         for ( i=0; i < len; i++ ) {
-            d = d.plus(piper([input[1][i]]).times(piper([input2.pow(i)])))
+            t1 = piper([input[1][i]])
+            t2 = piper(input2.pow(i))
+            d = d.plus(t1.times(t2))
         }
         return piper(n, d)
     }
