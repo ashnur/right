@@ -1678,7 +1678,7 @@ require.define("/node_modules/piper/lib/piper.js",function(require,module,export
             }
         }
 
-        if (  Math.abs(numerator[0].val()) === 0 ) {
+        if ( numerator.length === 1 && Math.abs(numerator[0].val()) === 0 ) {
             denominator = [rat(1)]
         }
 
