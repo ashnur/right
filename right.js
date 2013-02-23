@@ -8,33 +8,34 @@ void function(root){
             , prsr = require('prsr')
             ;
 
-        function ratjs() {}
+        function ratjs(){}
 
         function tic(e) {
             var result, lines = '', i, reslen
                 , num
                 , den
+                , out = document.getElementById('output')
                 ;
             try {
                 result = prsr(e.currentTarget.value + "\n")
             } catch (e) {
-                return document.getElementById('output').innerHTML = e.message
+                return out.innerHTML = e.message
             }
 
             reslen = result.length
             for ( i = 0; i < reslen ; i++ ) {
-                num = result[i][0]
-                den = result[i][1]
-                lines += '' + num + ( den !== 1 ? '/'+den : '' )
+                console.log('o',result)
+                lines += result[i].display()
                 lines +='<br/>'
             }
-            return document.getElementById('output').innerHTML = lines
+            out.innerHTML = lines
+            return
         }
 
         ratjs.watch = function(id) {
             return bean.one(window, 'load', function() {
                 var elem;
-                elem = document.querySelectorAll('#' + id)[0]
+                elem = document.getElementById(id)
                 if ( elem != null ) return bean.add(elem, 'keyup', tic)
             })
         }
