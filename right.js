@@ -25,7 +25,7 @@ void function(root){
             reslen = result.length
             for ( i = 0; i < reslen ; i++ ) {
                 console.log('o',result)
-                lines += result[i].display()
+                lines += result[i].toPolynom()
                 lines +='<br/>'
             }
             out.innerHTML = lines

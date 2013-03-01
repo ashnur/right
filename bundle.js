@@ -25,7 +25,7 @@ void function(root){
             reslen = result.length
             for ( i = 0; i < reslen ; i++ ) {
                 console.log('o',result)
-                lines += result[i].display()
+                lines += result[i].toPolynom()
                 lines +='<br/>'
             }
             out.innerHTML = lines
@@ -48,11 +48,7 @@ void function(root){
 
 }(this)
 
-},{"prsr":2,"bean":3}],2:[function(require,module,exports){// This file is just added for convenience so this repository can be
-// directly checked out into a project's deps folder
-module.exports = require('./lib/prsr')
-
-},{"./lib/prsr":4}],3:[function(require,module,exports){/*!
+},{"bean":2,"prsr":3}],2:[function(require,module,exports){/*!
   * bean.js - copyright Jacob Thornton 2011
   * https://github.com/fat/bean
   * MIT License
@@ -625,583 +621,11 @@ module.exports = require('./lib/prsr')
   return bean
 })
 
-},{}],5:[function(require,module,exports){// This file is just added for convenience so this repository can be
+},{}],3:[function(require,module,exports){// This file is just added for convenience so this repository can be
 // directly checked out into a project's deps folder
-module.exports = require('./lib/rats');
+module.exports = require('./lib/prsr')
 
-},{"./lib/rats":6}],6:[function(require,module,exports){void function(root){
-    "use strict"
-
-    var numbers = {};
-
-    function isInt(input){
-        return typeof input !== 'object' && parseInt(input, 10) == input
-    }
-
-
-    function checkInput(input){
-        if ( input instanceof Int32Array && input.byteLength === 8 ) {
-            return input
-        }
-        return rat(input)
-    }
-
-    function gcd(a, b){
-        var t;
-        a = Math.abs(a)
-        b = Math.abs(b)
-        while (b > 0) {
-            t = b
-            b = a % b
-            a = t
-        }
-        return a
-    }
-
-    function hashify(){
-        return this[0]+'/'+this[1]
-    }
-
-    function display(){
-        return ''+this[0]+(this[1]!=1?'/'+this[1]:'')
-    }
-
-    function val(){
-        return this[0]/this[1]
-    }
-
-    function plus(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1]+x[0]*this[1], this[1]*x[1])
-    }
-
-    function minus(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1]-x[0]*this[1], this[1]*x[1])
-    }
-
-    function times(x){
-        x = checkInput(x)
-        return rat(this[0]*x[0], this[1]*x[1])
-    }
-
-    function per(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1], x[0]*this[1])
-    }
-
-    function rat(numerator, denominator){
-
-        var index, divisor;
-
-        if ( ! isInt(numerator) ) {
-            throw new Error('invalid argument '+numerator+' ('+(typeof numerator)+')')
-        } else if ( typeof numerator === 'string' ) {
-            numerator = parseInt(numerator, 10)
-        }
-
-        if ( ! isInt(denominator) ) {
-            denominator = 1
-        } else if ( typeof denominator === 'string' ) {
-            denominator = parseInt(denominator, 10)
-        }
-
-        if ( denominator == 0 ) {
-            throw new Error('the denominator must not equal 0')
-        }
-
-        divisor = gcd(numerator, denominator)
-        if ( Math.abs(divisor) > 1 ) {
-            numerator = numerator / divisor
-            denominator = denominator / divisor
-        }
-
-        if ( denominator < 0 ) {
-            numerator *= -1
-            denominator *= -1
-        }
-
-        index = hashify.call([numerator, denominator])
-
-        if ( numbers[index] === undefined ) {
-            numbers[index] = new Int32Array(2)
-            numbers[index][0] = numerator
-            numbers[index][1] = denominator
-            numbers[index].toString = hashify
-            numbers[index].display = display
-            numbers[index].val = val
-            numbers[index].plus = plus
-            numbers[index].minus = minus
-            numbers[index].times = times
-            numbers[index].per = per
-        }
-
-        return numbers[index]
-
-    }
-
-    rat.isInt = isInt
-    rat.checkInput = checkInput
-    rat.gcd = gcd
-
-    if ( typeof module !== 'undefined' && module.exports ) {
-        module.exports = rat
-    } else {
-        root.factory = rat
-    }
-
-}(this)
-
-},{}],7:[function(require,module,exports){// This file is just added for convenience so this repository can be
-// directly checked out into a project's deps folder
-module.exports = require('./lib/piper');
-
-},{"./lib/piper":8}],8:[function(require,module,exports){void function(root){
-    "use strict"
-
-    var num
-        , pns = {}
-        , rats = require('rats')
-        ;
-
-    function isInt(input){
-        return typeof input !== 'object' && parseInt(input, 10) == input
-    }
-
-
-    function convertToInt(input){
-        if ( isInt(input) ) {
-            return parseInt(input, 10)
-        } else {
-            throw new Error('bad format: '+input+(' ('+typeof input+')'))
-        }
-    }
-
-    function ltrim(arr){
-        while ( arr.length > 1 && arr[0] === 0  ) {
-            arr.shift()
-        }
-        return arr
-    }
-
-    function rtrim(arr){
-        while ( arr.length > 1 && arr[arr.length-1] === 0  ) {
-            arr.pop()
-        }
-        return arr
-    }
-
-    function largestNonZeroIndex(arr){
-        var len = arr.length
-            , i, t;
-        for ( i=0; i<len; i++ ) {
-            if ( Math.abs(arr[i]) > 0) {
-                if ( t === undefined ) t = 0
-                if ( i > t ) t = i
-            }
-        }
-        return t
-    }
-
-    function alpha(pow){
-        var a=[], i = 0;
-        pow = pow == null ? 1 : pow
-        for (; i < pow; i++ ) { a.push(0) }
-        a.push(1)
-        return a
-    }
-
-    function rand(max, min){
-        var r =  Math.floor(Math.random() * (max - min + 1)) + min;
-        return  r == 0 ?  rand(max, min) : r
-    }
-
-    function rndp(mindeg, maxdeg, pure){
-        pure = pure != null ? false : pure
-
-        var deg = rand(maxdeg == null ? 6 : maxdeg, mindeg == null ? 3 : mindeg)
-            , base = alpha(deg)
-            , cf = rand(13, -13)
-            ;
-
-        return piper(base.map(function(){
-            var c = rand(13, -13)
-                ;
-            return pure ? c : c * cf
-        }))
-    }
-
-    function degree(arr){
-        if ( arr == null && this == null ) {
-            throw new Error('missing argument')
-        }
-
-        var arr = (arr == null) ? this : arr
-            , t1, t2
-            ;
-
-        if ( arr instanceof polyrat ) {
-            t1 = largestNonZeroIndex(arr[0])
-            t2 = largestNonZeroIndex(arr[1])
-            return t1 > t2 ? t1 : t2
-        } else if ( Array.isArray(arr) ) {
-            return largestNonZeroIndex(arr)
-        } else {
-            throw new Error('dafuq')
-        }
-    }
-
-
-    function divide(p, q){
-        //console.log(p,q)
-        var n, u, v, k, j, s=[], r=[]
-            , pdeg = degree(p), qdeg = degree(q)
-            ;
-
-        u = p.slice(0)
-        v = q.slice(0)
-
-        for ( k = pdeg - qdeg ; k >= 0 ; k-- ) {
-            s[k] = Math.floor(u[qdeg+k]/v[qdeg])
-            for ( j = qdeg + k  ; j >= k ; j-- ) {
-                u[j] = u[j]-(s[k]*v[j-k])
-            }
-        }
-
-        s = rtrim(s)
-        u = rtrim(u)
-
-        return [s,u]
-    }
-
-
-    function gcd(a, b){
-        var r = []
-            , i = 1
-            , guard = 0
-            , dc , dl
-            , lc , ll
-            , divisor
-            ;
-        if ( degree(a) >= degree(b) ) {
-            r[0] = a
-            r[1] = b
-        } else {
-            r[0] = b
-            r[1] = a
-        }
-        while ( r[i] != 0 ) {
-            if ( guard ++ > 50 ) throw new Error('z')
-            //console.log(r, r.length)
-            dl = degree(r[i-1])
-            dc = degree(r[i])
-            if ( dl < dc ) {
-                r[i+1] = dl
-            } else {
-                r[i] = piper(r[i]).times(piper(alpha(dl-dc)))[0]
-                lc = r[i][r[i].length-1]
-                ll = r[i-1][r[i-1].length-1]
-                r[i-1] = r[i-1].map(function(c){return c*lc})
-                r[i] = r[i].map(function(c){return c*ll})
-                divisor = r[i].concat(r[i-1]).reduce(
-                    function(p,c){
-                        return p===0?c:(rats.gcd(p,c))
-                    }
-                )
-                r[i-1] = r[i-1].map(function(c){return c/divisor})
-                r[i] = r[i].map(function(c){return c/divisor})
-                r[i+1] = rtrim(r[i-1].map(function(c,j){return c - r[i][j]}))
-                //console.log('r',r)
-            }
-            i++
-            if ( r.length > 3 && piper(r[i]) == piper(r[i-2]) && piper(r[i-1]) == piper(r[i-3]) ) {
-                return piper([1])
-            }
-        }
-        return piper(ltrim(r[i-1]))
-    }
-
-    function hashify(){
-        return '['+this[0].join(',')+']/['+this[1].join(',')+']'
-    }
-
-    function display(){
-        //rats display el van baszodva
-        //console.log(rats(this[0][0], this[1][0]).display()) // rahhh
-        return this.degree() === 0
-                ? rats(this[0][0], this[1][0]).display()
-                : '['+this[0].join(',')+']/['+this[1].join(',')+']'
-    }
-
-    function toPolynom(α){
-        α = α == null ? 'α' : α
-        function nom(v){
-            return v.map(function(c,i){
-                return c ? (c < 0 ? c : ( i == v.length-1 ? '' : '+')+c ) +
-                            (i == 0 ? '':  i == 1 ? '*'+α : '*'+α+'^'+i) : ''
-            }).reverse().join('')
-        }
-        return '('+nom(this[0])+')/('+nom(this[1])+')'
-    }
-
-    function plus(input, input2){
-        var len, i, l, r, result=[];
-
-        len = input.length > input2.length ? input.length : input2.length
-
-        for ( i = 0; i < len; i++ ) {
-            l = input[i] !== undefined ? input[i] : 0
-            r = input2[i] !== undefined ? input2[i] : 0
-            result[i] = l+r
-        }
-        return result
-    }
-
-    function minus(input, input2){
-        var len, i, l, r, result=[];
-        len = input.length > input2.length ? input.length : input2.length
-        for ( i = 0; i < len; i++ ) {
-            l = input[i] !== undefined ? input[i] : 0
-            r = input2[i] !== undefined ? input2[i] : 0
-            result[i] = l-r
-        }
-        return result
-    }
-
-    function times(input, input2){
-        var p, plen, q, qlen, i, j, result=[];
-        p = input.slice(0)
-        plen = input.length
-        q = input2.slice(0)
-        qlen = input2.length
-        for ( i=0; i<plen; i++ ) {
-            for ( j=0; j<qlen; j++ ) {
-                if ( result[i+j] === undefined ) result[i+j] = 0
-                if ( p[i+j] === undefined ) p[i+j] = 0
-                if ( q[i+j] === undefined ) q[i+j] = 0
-                result[i+j] = result[i+j]+(p[i]*q[j])
-            }
-        }
-        return result
-    }
-
-    function per(input, input2){
-        var result
-            , f = input instanceof polyrat
-            , s = input2 instanceof polyrat
-            , t = null
-            ;
-        if ( f && s ) {
-            throw new Error ('wtf')
-            result = divide(input, input2)
-        //} else if ( f && !s) {
-        //    result = input.per(piper(input2))
-        //} else if ( !f && s) {
-        //    result = piper(input).per(input2)
-        } else {
-            result = piper(input, input2)
-        }
-        return result
-    }
-
-    function pow(input, input2){
-        var i, result=[];
-        if ( ! isInt( input2 ) ) {
-            throw new Error('undefined operation, look for roots elsewhere')
-        }
-        i=0
-        result = input
-        if ( input2 !== 0 ) {
-            while ( ++i < input2 ) {
-                result = result.times(input)
-            }
-        } else {
-            result = piper([1])
-        }
-        return result
-    }
-
-    function val(input, input2){
-        var n = piper([0])
-            , d = piper([0])
-            , len
-            , i
-            , t1
-            , t2
-            ;
-        if ( ! ( input2 instanceof polyrat ) ) {
-            if ( Array.isArray(input2) ) {
-                input2 = piper(input2)
-            } else {
-                input2 = piper([input2])
-            }
-        }
-        len = input[0].length
-        for ( i=0; i < len; i++ ) {
-            t1 = piper([input[0][i]])
-            t2 = piper(input2.pow(i))
-            n = n.plus(t1.times(t2))
-        }
-        len = input[1].length
-        for ( i=0; i < len; i++ ) {
-            t1 = piper([input[1][i]])
-            t2 = piper(input2.pow(i))
-            d = d.plus(t1.times(t2))
-        }
-        return piper(n, d)
-    }
-
-    function polyrat(){}
-
-    polyrat.prototype.hashify = display
-
-    polyrat.prototype.toString = display
-
-    polyrat.prototype.degree = degree
-
-    polyrat.prototype.display = display
-
-    polyrat.prototype.toPolynom = toPolynom
-
-
-    polyrat.prototype.plus = function(input){
-        var p = this[0]
-            , q = this[1]
-            , r = input[0]
-            , s = input[1]
-            ;
-        return per(plus(times(p, s), times(r, q)), times(q, s))
-    }
-
-    polyrat.prototype.minus = function(input){
-        var p = this[0]
-            , q = this[1]
-            , r = input[0]
-            , s = input[1]
-            ;
-        return per(minus(times(p, s), times(r, q)), times(q, s))
-    }
-    polyrat.prototype.times = function(input){
-
-        var p = this[0]
-            , q = this[1]
-            , r = input[0]
-            , s = input[1]
-            , n = times(p, r)
-            , d = times(q, s)
-            ;
-
-        return per(n, d)
-    }
-    polyrat.prototype.pow = function (input){
-        return pow(this, input)
-    }
-    polyrat.prototype.val = function (input){
-        return val(this, input)
-    }
-    polyrat.prototype.per = function (input){
-        var p = this[0]
-            , q = this[1]
-            , r = input[0]
-            , s = input[1]
-            , n = times(p, s)
-            , d = times(r, q)
-            ;
-        return per(n, d)
-    }
-    polyrat.prototype.divide = function (input){
-        return divide(this, input)
-    }
-    polyrat.prototype.leftTr = function (input){
-        return val(this,piper([input,1]))
-    }
-    polyrat.prototype.compose = function (input){
-        return compose(this, input)
-    }
-
-
-    function piper(numerator, denominator){
-        var key, idx, t, len, i, n, j, d, intvals, dd, divisor;
-
-        if ( numerator instanceof polyrat ) {
-            if ( denominator == null ) {
-                return numerator
-            } else if ( denominator instanceof polyrat) {
-                n = times(numerator[0], denominator[1])
-                d = times(denominator[0], numerator[1])
-                numerator = n
-                denominator = d
-            }
-        }
-
-        if ( ! Array.isArray(numerator) ) {
-            throw new Error('invalid argument, array expected instead of '+
-                    numerator+' ('+typeof numerator+')')
-        } else {
-            numerator = numerator.map(convertToInt)
-        }
-
-        denominator = Array.isArray(denominator)
-                        ? denominator.map(convertToInt)
-                        : [1]
-
-        dd = largestNonZeroIndex(denominator)
-
-        if ( dd  === undefined ) {
-            throw new Error('the denominator must not equal 0')
-        }
-
-        numerator = rtrim(numerator)
-        denominator = rtrim(denominator)
-        if ( dd > 0 ) {
-            divisor = gcd(numerator, denominator)
-            if ( Math.abs(degree(divisor[0])) > 0 || divisor[0][0] !== 1 ) {
-                numerator = divide(numerator, divisor[0])[0]
-                denominator = divide(denominator, divisor[0])[0]
-            }
-        }
-
-        if ( numerator.length === 1 && Math.abs(numerator[0]) === 0 ) {
-            denominator = [1]
-        }
-
-        divisor = numerator.concat(denominator).reduce(
-            function(p,c){
-                return p===0?c:(rats.gcd(p,c))
-            }
-        )
-
-        divisor = denominator[denominator.length-1] * divisor < 0
-                                            ? divisor * -1
-                                            : divisor
-
-        numerator = rtrim(numerator.map(function(v){ return v/divisor}))
-        denominator = rtrim(denominator.map(function(v){ return v/divisor}))
-
-        idx = '['+numerator.join(',')+']/['+denominator.join(',')+']'
-
-        if ( pns[idx] === undefined ) {
-            pns[idx] = new polyrat
-            pns[idx][0] = numerator
-            pns[idx][1] = denominator
-        }
-
-
-        return pns[idx]
-    }
-
-    piper.polyrat = polyrat
-
-    piper.rndp = rndp
-
-    if ( module != undefined && module.exports )
-        module.exports = piper
-    else
-        root.factory = piper
-
-}(this)
-
-},{"rats":5}],4:[function(require,module,exports){void function(root){
+},{"./lib/prsr":4}],4:[function(require,module,exports){void function(root){
     "use strict"
 
     var piper = require('piper')
@@ -1602,11 +1026,142 @@ module.exports = require('./lib/piper');
 
 }(this)
 
-},{"rats":5,"piper":7,"spce":9}],9:[function(require,module,exports){// This file is just added for convenience so this repository can be
+},{"piper":5,"rats":6,"spce":7}],5:[function(require,module,exports){// This file is just added for convenience so this repository can be
+// directly checked out into a project's deps folder
+module.exports = require('./lib/piper');
+
+},{"./lib/piper":8}],6:[function(require,module,exports){// This file is just added for convenience so this repository can be
+// directly checked out into a project's deps folder
+module.exports = require('./lib/rats');
+
+},{"./lib/rats":9}],7:[function(require,module,exports){// This file is just added for convenience so this repository can be
 // directly checked out into a project's deps folder
 module.exports = require('./lib/spce');
 
-},{"./lib/spce":10}],10:[function(require,module,exports){void function(root){
+},{"./lib/spce":10}],9:[function(require,module,exports){void function(root){
+    "use strict"
+
+    var numbers = {};
+
+    function isInt(input){
+        return typeof input !== 'object' && parseInt(input, 10) == input
+    }
+
+
+    function checkInput(input){
+        if ( input instanceof Int32Array && input.byteLength === 8 ) {
+            return input
+        }
+        return rat(input)
+    }
+
+    function gcd(a, b){
+        var t;
+        a = Math.abs(a)
+        b = Math.abs(b)
+        while (b > 0) {
+            t = b
+            b = a % b
+            a = t
+        }
+        return a
+    }
+
+    function hashify(){
+        return this[0]+'/'+this[1]
+    }
+
+    function display(){
+        return ''+this[0]+(this[1]!=1?'/'+this[1]:'')
+    }
+
+    function val(){
+        return this[0]/this[1]
+    }
+
+    function plus(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1]+x[0]*this[1], this[1]*x[1])
+    }
+
+    function minus(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1]-x[0]*this[1], this[1]*x[1])
+    }
+
+    function times(x){
+        x = checkInput(x)
+        return rat(this[0]*x[0], this[1]*x[1])
+    }
+
+    function per(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1], x[0]*this[1])
+    }
+
+    function rat(numerator, denominator){
+
+        var index, divisor;
+
+        if ( ! isInt(numerator) ) {
+            throw new Error('invalid argument '+numerator+' ('+(typeof numerator)+')')
+        } else if ( typeof numerator === 'string' ) {
+            numerator = parseInt(numerator, 10)
+        }
+
+        if ( ! isInt(denominator) ) {
+            denominator = 1
+        } else if ( typeof denominator === 'string' ) {
+            denominator = parseInt(denominator, 10)
+        }
+
+        if ( denominator == 0 ) {
+            throw new Error('the denominator must not equal 0')
+        }
+
+        divisor = gcd(numerator, denominator)
+        if ( Math.abs(divisor) > 1 ) {
+            numerator = numerator / divisor
+            denominator = denominator / divisor
+        }
+
+        if ( denominator < 0 ) {
+            numerator *= -1
+            denominator *= -1
+        }
+
+        index = hashify.call([numerator, denominator])
+
+        if ( numbers[index] === undefined ) {
+            numbers[index] = new Int32Array(2)
+            numbers[index][0] = numerator
+            numbers[index][1] = denominator
+            numbers[index].toString = hashify
+            numbers[index].display = display
+            numbers[index].val = val
+            numbers[index].plus = plus
+            numbers[index].minus = minus
+            numbers[index].times = times
+            numbers[index].per = per
+        }
+
+        return numbers[index]
+
+    }
+
+    rat.isInt = isInt
+    rat.checkInput = checkInput
+    rat.gcd = gcd
+
+    if ( typeof module !== 'undefined' && module.exports ) {
+        module.exports = rat
+    } else {
+        root.factory = rat
+    }
+
+}(this)
+
+},{}],10:[function(require,module,exports){void function(root){
 
     var spce,  expr, newkey, privkeys, variable, variables
         ;
@@ -1701,4 +1256,472 @@ module.exports = require('./lib/spce');
     }
 }(this)
 
-},{}]},{},[1]);
+},{}],8:[function(require,module,exports){void function(root){
+    "use strict"
+
+    var num
+        , pns = {}
+        , rats = require('rats')
+        ;
+
+    function isInt(input){
+        return typeof input !== 'object' && parseInt(input, 10) == input
+    }
+
+
+    function convertToInt(input){
+        if ( isInt(input) ) {
+            return parseInt(input, 10)
+        } else {
+            throw new Error('bad format: '+input+(' ('+typeof input+')'))
+        }
+    }
+
+    function ltrim(arr, maxDrop){
+        if ( maxDrop == null ) maxDrop = degree(arr)
+                console.log(arr, maxDrop)
+        while ( arr.length > 1 && arr[0] === 0 && maxDrop > 0 ) {
+            arr.shift()
+            maxDrop--
+        }
+        return arr
+    }
+
+    function rtrim(arr){
+        while ( arr.length > 1 && arr[arr.length-1] === 0  ) {
+            arr.pop()
+        }
+        return arr
+    }
+
+    function largestNonZeroIndex(arr){
+        var len = arr.length
+            , i, t;
+        for ( i=0; i<len; i++ ) {
+            if ( Math.abs(arr[i]) > 0) {
+                if ( t === undefined ) t = 0
+                if ( i > t ) t = i
+            }
+        }
+        return t
+    }
+
+    function alpha(pow){
+        var a=[], i = 0;
+        pow = pow == null ? 1 : pow
+        for (; i < pow; i++ ) { a.push(0) }
+        a.push(1)
+        return a
+    }
+
+    function rand(max, min){
+        var r =  Math.floor(Math.random() * (max - min + 1)) + min;
+        return  r == 0 ?  rand(max, min) : r
+    }
+
+    function rndp(mindeg, maxdeg, pure){
+        pure = pure != null ? false : pure
+
+        var deg = rand(maxdeg == null ? 6 : maxdeg, mindeg == null ? 3 : mindeg)
+            , base = alpha(deg)
+            , cf = rand(13, -13)
+            ;
+
+        return piper(base.map(function(){
+            var c = rand(13, -13)
+                ;
+            return pure ? c : c * cf
+        }))
+    }
+
+    function degree(arr){
+        if ( arr == null && this == null ) {
+            throw new Error('missing argument')
+        }
+
+        var arr = (arr == null) ? this : arr
+            , t1, t2
+            ;
+
+        if ( arr instanceof polyrat ) {
+            t1 = largestNonZeroIndex(arr[0])
+            t2 = largestNonZeroIndex(arr[1])
+            return t1 > t2 ? t1 : t2
+        } else if ( Array.isArray(arr) ) {
+            return largestNonZeroIndex(arr)
+        } else {
+            throw new Error('dafuq')
+        }
+    }
+
+
+    function divide(p, q){
+        var n, u, v, k, j, s=[], r=[]
+            , pdeg = degree(p), qdeg = degree(q)
+            ;
+
+        u = p.slice(0)
+        v = q.slice(0)
+
+        for ( k = pdeg - qdeg ; k >= 0 ; k-- ) {
+            s[k] = Math.floor(u[qdeg+k]/v[qdeg])
+            for ( j = qdeg + k  ; j >= k ; j-- ) {
+                u[j] = u[j]-(s[k]*v[j-k])
+            }
+        }
+
+        s = rtrim(s)
+        u = rtrim(u)
+
+        return [s,u]
+    }
+
+
+    function gcd(a, b){
+        var r = []
+            , i = 1
+            , guard = 0
+            , dc , dl
+            , lc , ll
+            , divisor
+            , raised = 0
+            ;
+        // current element should be the smaller one
+        // last element should be the larger one
+        if ( degree(a) >= degree(b) ) {
+            r[0] = a
+            r[1] = b
+        } else {
+            r[0] = b
+            r[1] = a
+        }
+        while ( r[i] != 0 ) {
+            // degrees of the last and the current elements
+            dl = degree(r[i-1])
+            dc = degree(r[i])
+
+            // raise the current element to the same power as the last element
+            r[i] = piper(r[i]).times(piper(alpha(dl-dc)))[0]
+            raised += dl-dc
+
+            // get the leading coefficient for the last and current element
+            ll = r[i-1][r[i-1].length-1]
+            lc = r[i][r[i].length-1]
+
+            // multiply the last and current element with the lead coefficients
+            r[i-1] = r[i-1].map(function(c){return c*lc})
+            r[i] = r[i].map(function(c){return c*ll})
+
+            // calculate the gcd of all the coefficients from the elements
+            divisor = r[i].concat(r[i-1]).reduce(
+                function(p,c){
+                    return p===0?c:(rats.gcd(p,c))
+                }
+            )
+
+            // divide the last two elements with the gcd
+            r[i-1] = r[i-1].map(function(c){return c/divisor})
+            r[i] = r[i].map(function(c){return c/divisor})
+
+            // calculate the difference between the last and current elements and
+            // drop off the highest power, now zero coefficients
+            r[i+1] = rtrim(r[i-1].map(function(c,j){return c - r[i][j]}))
+
+            i++
+
+            // if we are past 2 iterations and nothing changed
+            // there is no gcd, return 1
+            if ( r.length > 3 && piper(r[i]) == piper(r[i-2]) && piper(r[i-1]) == piper(r[i-3]) ) {
+                return piper([1])
+            }
+        }
+        // drop off all the smaller coefficients of 0 which
+        // were introduced by raising
+        return piper(ltrim(r[i-1]), raised)
+    }
+
+    function hashify(){
+        return '['+this[0].join(',')+']/['+this[1].join(',')+']'
+    }
+
+    function display(){
+        //rats display el van baszodva
+        //console.log(rats(this[0][0], this[1][0]).display()) // rahhh
+        return this.degree() === 0
+                ? rats(this[0][0], this[1][0]).display()
+                : '['+this[0].join(',')+']/['+this[1].join(',')+']'
+    }
+
+    function toPolynom(α){
+        α = α == null ? 'α' : α
+        function nom(v){
+            return v.map(function(c,i){
+                var O, C, B, P, ac = Math.abs(c);
+                O =  ( i == v.length-1 || ac == 0 ) ? '' : c < 0 ? '-' : '+'
+                C = ( ac == 0 || ac == 1 ) ? '' : ac
+                B = ( i == 0 || ac == 0 ) ? '' : (ac == 1 ? '' : '*')+α
+                P = (i == 0 || i == 1 || ac == 0) ? '' : '^'+i
+                return O + C + B + P
+            }).reverse().join('')
+        }
+        return '('+nom(this[0])+')/('+nom(this[1])+')'
+    }
+
+    function plus(input, input2){
+        var len, i, l, r, result=[];
+
+        len = input.length > input2.length ? input.length : input2.length
+
+        for ( i = 0; i < len; i++ ) {
+            l = input[i] !== undefined ? input[i] : 0
+            r = input2[i] !== undefined ? input2[i] : 0
+            result[i] = l+r
+        }
+        return result
+    }
+
+    function minus(input, input2){
+        var len, i, l, r, result=[];
+        len = input.length > input2.length ? input.length : input2.length
+        for ( i = 0; i < len; i++ ) {
+            l = input[i] !== undefined ? input[i] : 0
+            r = input2[i] !== undefined ? input2[i] : 0
+            result[i] = l-r
+        }
+        return result
+    }
+
+    function times(input, input2){
+        var p, plen, q, qlen, i, j, result=[];
+        p = input.slice(0)
+        plen = input.length
+        q = input2.slice(0)
+        qlen = input2.length
+        for ( i=0; i<plen; i++ ) {
+            for ( j=0; j<qlen; j++ ) {
+                if ( result[i+j] === undefined ) result[i+j] = 0
+                if ( p[i+j] === undefined ) p[i+j] = 0
+                if ( q[i+j] === undefined ) q[i+j] = 0
+                result[i+j] = result[i+j]+(p[i]*q[j])
+            }
+        }
+        return result
+    }
+
+    function per(input, input2){
+        var result
+            , f = input instanceof polyrat
+            , s = input2 instanceof polyrat
+            , t = null
+            ;
+        if ( f && s ) {
+            throw new Error ('wtf')
+            result = divide(input, input2)
+        //} else if ( f && !s) {
+        //    result = input.per(piper(input2))
+        //} else if ( !f && s) {
+        //    result = piper(input).per(input2)
+        } else {
+            result = piper(input, input2)
+        }
+        return result
+    }
+
+    function pow(input, input2){
+        var i, result=[];
+        if ( ! isInt( input2 ) ) {
+            throw new Error('undefined operation, look for roots elsewhere')
+        }
+        i=0
+        result = input
+        if ( input2 !== 0 ) {
+            while ( ++i < input2 ) {
+                result = result.times(input)
+            }
+        } else {
+            result = piper([1])
+        }
+        return result
+    }
+
+    function val(input, input2){
+        var n = piper([0])
+            , d = piper([0])
+            , len
+            , i
+            , t1
+            , t2
+            ;
+        if ( ! ( input2 instanceof polyrat ) ) {
+            if ( Array.isArray(input2) ) {
+                input2 = piper(input2)
+            } else {
+                input2 = piper([input2])
+            }
+        }
+        len = input[0].length
+        for ( i=0; i < len; i++ ) {
+            t1 = piper([input[0][i]])
+            t2 = piper(input2.pow(i))
+            n = n.plus(t1.times(t2))
+        }
+        len = input[1].length
+        for ( i=0; i < len; i++ ) {
+            t1 = piper([input[1][i]])
+            t2 = piper(input2.pow(i))
+            d = d.plus(t1.times(t2))
+        }
+        return piper(n, d)
+    }
+
+    function polyrat(){}
+
+    polyrat.prototype.hashify = display
+
+    polyrat.prototype.toString = display
+
+    polyrat.prototype.degree = degree
+
+    polyrat.prototype.display = display
+
+    polyrat.prototype.toPolynom = toPolynom
+
+
+    polyrat.prototype.plus = function(input){
+        var p = this[0]
+            , q = this[1]
+            , r = input[0]
+            , s = input[1]
+            ;
+        return per(plus(times(p, s), times(r, q)), times(q, s))
+    }
+
+    polyrat.prototype.minus = function(input){
+        var p = this[0]
+            , q = this[1]
+            , r = input[0]
+            , s = input[1]
+            ;
+        return per(minus(times(p, s), times(r, q)), times(q, s))
+    }
+    polyrat.prototype.times = function(input){
+
+        var p = this[0]
+            , q = this[1]
+            , r = input[0]
+            , s = input[1]
+            , n = times(p, r)
+            , d = times(q, s)
+            ;
+
+        return per(n, d)
+    }
+    polyrat.prototype.pow = function (input){
+        return pow(this, input)
+    }
+    polyrat.prototype.val = function (input){
+        return val(this, input)
+    }
+    polyrat.prototype.per = function (input){
+        var p = this[0]
+            , q = this[1]
+            , r = input[0]
+            , s = input[1]
+            , n = times(p, s)
+            , d = times(r, q)
+            ;
+        return per(n, d)
+    }
+    polyrat.prototype.divide = function (input){
+        return divide(this, input)
+    }
+    polyrat.prototype.leftTr = function (input){
+        return val(this,piper([input,1]))
+    }
+    polyrat.prototype.compose = function (input){
+        return compose(this, input)
+    }
+
+
+    function piper(numerator, denominator){
+        var key, idx, t, len, i, n, j, d, intvals, dd, divisor;
+
+        if ( numerator instanceof polyrat ) {
+            if ( denominator == null ) {
+                return numerator
+            } else if ( denominator instanceof polyrat) {
+                n = times(numerator[0], denominator[1])
+                d = times(denominator[0], numerator[1])
+                numerator = n
+                denominator = d
+            }
+        }
+
+        if ( ! Array.isArray(numerator) ) {
+            throw new Error('invalid argument, array expected instead of '+
+                    numerator+' ('+typeof numerator+')')
+        } else {
+            numerator = numerator.map(convertToInt)
+        }
+
+        denominator = Array.isArray(denominator)
+                        ? denominator.map(convertToInt)
+                        : [1]
+
+        dd = largestNonZeroIndex(denominator)
+
+        if ( dd  === undefined ) {
+            throw new Error('the denominator must not equal 0')
+        }
+
+        numerator = rtrim(numerator)
+        denominator = rtrim(denominator)
+        if ( dd > 0 ) {
+            divisor = gcd(numerator, denominator)
+            if ( Math.abs(degree(divisor[0])) > 0 || divisor[0][0] !== 1 ) {
+                numerator = divide(numerator, divisor[0])[0]
+                denominator = divide(denominator, divisor[0])[0]
+            }
+        }
+
+        if ( numerator.length === 1 && Math.abs(numerator[0]) === 0 ) {
+            denominator = [1]
+        }
+
+        divisor = numerator.concat(denominator).reduce(
+            function(p,c){
+                return p===0?c:(rats.gcd(p,c))
+            }
+        )
+
+        divisor = denominator[denominator.length-1] * divisor < 0
+                                            ? divisor * -1
+                                            : divisor
+
+        numerator = rtrim(numerator.map(function(v){ return v/divisor}))
+        denominator = rtrim(denominator.map(function(v){ return v/divisor}))
+
+        idx = '['+numerator.join(',')+']/['+denominator.join(',')+']'
+
+        if ( pns[idx] === undefined ) {
+            pns[idx] = new polyrat
+            pns[idx][0] = numerator
+            pns[idx][1] = denominator
+        }
+
+
+        return pns[idx]
+    }
+
+    piper.polyrat = polyrat
+
+    piper.rndp = rndp
+
+    if ( module != undefined && module.exports )
+        module.exports = piper
+    else
+        root.factory = piper
+
+}(this)
+
+},{"rats":6}]},{},[1]);
