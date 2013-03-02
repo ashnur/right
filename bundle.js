@@ -627,26 +627,14 @@ module.exports = require('./lib/prsr')
 },{"./lib/prsr":4}],4:[function(require,module,exports){void function(root){
     "use strict"
 
-    var piper = require('piper')
+    var piper = require('polyrats')
         , ONE, ZERO
         , defaults = {}
         , space = require('spce')
         , symbols = {}
         , tokens = []
-        , rat = require('rats')
+        , rat = require('rationals')
         ;
-
-//    piper.polyrat.prototype.toString = function(){
-//        var pretty = function(c){return c[0]+(c[1]?'':'/'+c[1])}
-//            , r
-//            ;
-//        if ( this[1].length = 1 && this[1][0] == piper([1]) ) {
-//            r = '(['+this[0].map(pretty).join(',')+'])'
-//        } else {
-//            r = '(['+this[0].map(pretty).join(',')+']/['+this[1].map(pretty).join(',')+'])'
-//        }
-//        return r
-//    }
 
     function tokenize(input){
         return tokenizer.call(input)
@@ -871,6 +859,7 @@ module.exports = require('./lib/prsr')
 
     symbolizer.call(defaults, ct("="), 11, (function(l,r){
         if ( l == null || r == null ) throw new Error ('equations have two sides' )
+        console.log(l,r)
         return null
     }))
 
@@ -1025,11 +1014,11 @@ module.exports = require('./lib/prsr')
 
 }(this)
 
-},{"piper":5,"rats":6,"spce":7}],5:[function(require,module,exports){// This file is just added for convenience so this repository can be
+},{"rationals":5,"polyrats":6,"spce":7}],6:[function(require,module,exports){// This file is just added for convenience so this repository can be
 // directly checked out into a project's deps folder
-module.exports = require('./lib/piper');
+module.exports = require('./lib/polyrats');
 
-},{"./lib/piper":8}],6:[function(require,module,exports){// This file is just added for convenience so this repository can be
+},{"./lib/polyrats":8}],5:[function(require,module,exports){// This file is just added for convenience so this repository can be
 // directly checked out into a project's deps folder
 module.exports = require('./lib/rats');
 
@@ -1258,9 +1247,8 @@ module.exports = require('./lib/spce');
 },{}],8:[function(require,module,exports){void function(root){
     "use strict"
 
-    var num
-        , pns = {}
-        , rats = require('rats')
+    var pns = {}
+        , rats = require('rationals')
         ;
 
     function isInt(input){
@@ -1276,18 +1264,16 @@ module.exports = require('./lib/spce');
         }
     }
 
-    function ltrim(arr, maxDrop){
-        if ( maxDrop == null ) maxDrop = degree(arr)
-        //console.log('lt1', arr, maxDrop)
+    function lefttrim(arr, maxDrop){
+        if ( maxDrop == null ) maxDrop = arr.length-1
         while ( arr.length > 1 && arr[0] === 0 && maxDrop > 0 ) {
             arr.shift()
             maxDrop--
         }
-        //console.log('lt2', arr, maxDrop)
         return arr
     }
 
-    function rtrim(arr){
+    function righttrim(arr){
         while ( arr.length > 1 && arr[arr.length-1] === 0  ) {
             arr.pop()
         }
@@ -1307,9 +1293,9 @@ module.exports = require('./lib/spce');
     }
 
     function alpha(pow){
-        var a=[], i = 0;
         pow = pow == null ? 1 : pow
-        for (; i < pow; i++ ) { a.push(0) }
+        var a=[], i = pow;
+        while ( i-- > 0 ) { a.push(0) }
         a.push(1)
         return a
     }
@@ -1324,13 +1310,13 @@ module.exports = require('./lib/spce');
 
         var deg = rand(maxdeg == null ? 6 : maxdeg, mindeg == null ? 3 : mindeg)
             , base = alpha(deg)
-            , cf = rand(13, -13)
+            , common_factor = rand(13, -13)
             ;
 
         return piper(base.map(function(){
-            var c = rand(13, -13)
+            var coefficient = rand(13, -13)
                 ;
-            return pure ? c : c * cf
+            return pure ? coefficient : coefficient * common_factor
         }))
     }
 
@@ -1340,13 +1326,15 @@ module.exports = require('./lib/spce');
         }
 
         var arr = (arr == null) ? this : arr
-            , t1, t2
+            , numerator_degree, denominator_degree
             ;
 
         if ( arr instanceof polyrat ) {
-            t1 = largestNonZeroIndex(arr[0])
-            t2 = largestNonZeroIndex(arr[1])
-            return t1 > t2 ? t1 : t2
+            numerator_degree = largestNonZeroIndex(arr[0])
+            denominator_degree = largestNonZeroIndex(arr[1])
+            return numerator_degree > denominator_degree
+                                ? numerator_degree
+                                : denominator_degree
         } else if ( Array.isArray(arr) ) {
             return largestNonZeroIndex(arr)
         } else {
@@ -1355,34 +1343,33 @@ module.exports = require('./lib/spce');
     }
 
 
-    function divide(p, q){
-        var n, u, v, k, j, s=[], r=[]
-            , pdeg = degree(p), qdeg = degree(q)
+    function divide(a, b){
+        var remainder, divisor, k, j, quotient=[]
+            , adeg = degree(a), bdeg = degree(b)
             ;
 
-        u = p.slice(0)
-        v = q.slice(0)
+        remainder = a.slice(0)
+        divisor = b.slice(0)
 
-        for ( k = pdeg - qdeg ; k >= 0 ; k-- ) {
-            s[k] = Math.floor(u[qdeg+k]/v[qdeg])
-            for ( j = qdeg + k  ; j >= k ; j-- ) {
-                u[j] = u[j]-(s[k]*v[j-k])
+        for ( k = adeg - bdeg ; k >= 0 ; k-- ) {
+            quotient[k] = Math.floor(remainder[bdeg+k]/divisor[bdeg])
+            for ( j = bdeg + k  ; j >= k ; j-- ) {
+                remainder[j] = remainder[j]-(quotient[k]*divisor[j-k])
             }
         }
 
-        s = rtrim(s)
-        u = rtrim(u)
+        quotient = righttrim(quotient)
+        remainder = righttrim(remainder)
 
-        return [s,u]
+        return [quotient, remainder]
     }
 
 
     function gcd(a, b){
-        var r = []
+        var result = []
             , i = 1
-            , guard = 0
-            , dc , dl
-            , lc , ll
+            , deg_current , deg_last
+            , lead_current , lead_last
             , divisor
             , shifts = [[0],[0]]
             , gcd
@@ -1394,54 +1381,55 @@ module.exports = require('./lib/spce');
         // current element should be the smaller one
         // last element should be the larger one
         if ( degree(a) >= degree(b) ) {
-            r[0] = a
-            r[1] = b
+            result[0] = a
+            result[1] = b
         } else {
-            r[0] = b
-            r[1] = a
+            result[0] = b
+            result[1] = a
         }
-        while ( r[i] != 0 ) {
+        while ( result[i] != 0 ) {
             // degrees of the last and the current elements
-            dl = degree(r[i-1])
-            dc = degree(r[i])
+            deg_last = degree(result[i-1])
+            deg_current = degree(result[i])
+
             // raise the current element to the same power as the last element
-            r[i] = piper(r[i]).times(piper(alpha(dl-dc)))[0]
-            shifts[i%2].push(dl-dc)
+            result[i] = piper(result[i]).times(piper(alpha(deg_last-deg_current)))[0]
+            shifts[i%2].push(deg_last-deg_current)
 
             // get the leading coefficient for the last and current element
-            ll = r[i-1][r[i-1].length-1]
-            lc = r[i][r[i].length-1]
+            lead_last = result[i-1][result[i-1].length-1]
+            lead_current = result[i][result[i].length-1]
 
             // multiply the last and current element with the lead coefficients
-            r[i-1] = r[i-1].map(function(c){return c*lc})
-            r[i] = r[i].map(function(c){return c*ll})
+            result[i-1] = result[i-1].map(function(c){return c*lead_current})
+            result[i] = result[i].map(function(c){return c*lead_last})
 
             // calculate the gcd of all the coefficients from the elements
-            divisor = r[i].concat(r[i-1]).reduce(
+            divisor = result[i].concat(result[i-1]).reduce(
                 function(p,c){
                     return p===0?c:(rats.gcd(p,c))
                 }
             )
 
             // divide the last two elements with the gcd
-            r[i-1] = r[i-1].map(function(c){return c/divisor})
-            r[i] = r[i].map(function(c){return c/divisor})
+            result[i-1] = result[i-1].map(function(c){return c/divisor})
+            result[i] = result[i].map(function(c){return c/divisor})
 
             // calculate the difference between the last and current elements and
             // drop off the highest power, now zero coefficients
-            r[i+1] = rtrim(r[i-1].map(function(c,j){return c - r[i][j]}))
+            result[i+1] = righttrim(result[i-1].map(function(c,j){return c - result[i][j]}))
 
             i++
 
             // if we are past 2 iterations and nothing changed
             // there is no gcd, return 1
-            if ( r.length > 3 && piper(r[i]) == piper(r[i-2]) && piper(r[i-1]) == piper(r[i-3]) ) {
+            if ( result.length > 3 && piper(result[i]) == piper(result[i-2]) && piper(result[i-1]) == piper(result[i-3]) ) {
                 return piper([1])
             }
         }
         // drop off all the smaller coefficients of 0 which
         // were introduced by raising
-        return piper(ltrim(r[i-1], shifts[(i-1)%2].reduce(function(x,y){return x + y})))
+        return piper(lefttrim(result[i-1], shifts[(i-1)%2].reduce(function(x,y){return x + y})))
     }
 
     function hashify(){
@@ -1471,36 +1459,36 @@ module.exports = require('./lib/spce');
         return '('+nom(this[0])+')/('+nom(this[1])+')'
     }
 
-    function plus(input, input2){
-        var len, i, l, r, result=[];
+    function plus(first, second){
+        var len, i, left, right, result=[];
 
-        len = input.length > input2.length ? input.length : input2.length
+        len = first.length > second.length ? first.length : second.length
 
         for ( i = 0; i < len; i++ ) {
-            l = input[i] !== undefined ? input[i] : 0
-            r = input2[i] !== undefined ? input2[i] : 0
-            result[i] = l+r
+            left = first[i] !== undefined ? first[i] : 0
+            right = second[i] !== undefined ? second[i] : 0
+            result[i] = left+right
         }
         return result
     }
 
-    function minus(input, input2){
-        var len, i, l, r, result=[];
-        len = input.length > input2.length ? input.length : input2.length
+    function minus(first, second){
+        var len, i, left, right, result=[];
+        len = first.length > second.length ? first.length : second.length
         for ( i = 0; i < len; i++ ) {
-            l = input[i] !== undefined ? input[i] : 0
-            r = input2[i] !== undefined ? input2[i] : 0
-            result[i] = l-r
+            left = first[i] !== undefined ? first[i] : 0
+            right = second[i] !== undefined ? second[i] : 0
+            result[i] = left-right
         }
         return result
     }
 
-    function times(input, input2){
+    function times(first, second){
         var p, plen, q, qlen, i, j, result=[];
-        p = input.slice(0)
-        plen = input.length
-        q = input2.slice(0)
-        qlen = input2.length
+        p = first.slice(0)
+        plen = first.length
+        q = second.slice(0)
+        qlen = second.length
         for ( i=0; i<plen; i++ ) {
             for ( j=0; j<qlen; j++ ) {
                 if ( result[i+j] === undefined ) result[i+j] = 0
@@ -1512,35 +1500,35 @@ module.exports = require('./lib/spce');
         return result
     }
 
-    function per(input, input2){
+    function per(first, second){
         var result
-            , f = input instanceof polyrat
-            , s = input2 instanceof polyrat
+            , f = first instanceof polyrat
+            , s = second instanceof polyrat
             , t = null
             ;
         if ( f && s ) {
             throw new Error ('wtf')
-            result = divide(input, input2)
+            result = divide(first, second)
         //} else if ( f && !s) {
-        //    result = input.per(piper(input2))
+        //    result = input.per(piper(second))
         //} else if ( !f && s) {
-        //    result = piper(input).per(input2)
+        //    result = piper(input).per(second)
         } else {
-            result = piper(input, input2)
+            result = piper(first, second)
         }
         return result
     }
 
-    function pow(input, input2){
+    function pow(first, second){
         var i, result=[];
-        if ( ! isInt( input2 ) ) {
+        if ( ! isInt( second ) ) {
             throw new Error('undefined operation, look for roots elsewhere')
         }
         i=0
-        result = input
-        if ( input2 !== 0 ) {
-            while ( ++i < input2 ) {
-                result = result.times(input)
+        result = first
+        if ( second !== 0 ) {
+            while ( ++i < second ) {
+                result = result.times(first)
             }
         } else {
             result = piper([1])
@@ -1548,7 +1536,7 @@ module.exports = require('./lib/spce');
         return result
     }
 
-    function val(input, input2){
+    function val(first, second){
         var n = piper([0])
             , d = piper([0])
             , len
@@ -1556,23 +1544,23 @@ module.exports = require('./lib/spce');
             , t1
             , t2
             ;
-        if ( ! ( input2 instanceof polyrat ) ) {
-            if ( Array.isArray(input2) ) {
-                input2 = piper(input2)
+        if ( ! ( second instanceof polyrat ) ) {
+            if ( Array.isArray(second) ) {
+                second = piper(second)
             } else {
-                input2 = piper([input2])
+                second = piper([second])
             }
         }
-        len = input[0].length
+        len = first[0].length
         for ( i=0; i < len; i++ ) {
-            t1 = piper([input[0][i]])
-            t2 = piper(input2.pow(i))
+            t1 = piper([first[0][i]])
+            t2 = piper(second.pow(i))
             n = n.plus(t1.times(t2))
         }
-        len = input[1].length
+        len = first[1].length
         for ( i=0; i < len; i++ ) {
-            t1 = piper([input[1][i]])
-            t2 = piper(input2.pow(i))
+            t1 = piper([first[1][i]])
+            t2 = piper(second.pow(i))
             d = d.plus(t1.times(t2))
         }
         return piper(n, d)
@@ -1678,8 +1666,8 @@ module.exports = require('./lib/spce');
             throw new Error('the denominator must not equal 0')
         }
 
-        numerator = rtrim(numerator)
-        denominator = rtrim(denominator)
+        numerator = righttrim(numerator)
+        denominator = righttrim(denominator)
         if ( dd > 0 ) {
             divisor = gcd(numerator, denominator)
             if ( Math.abs(degree(divisor[0])) > 0 || divisor[0][0] !== 1 ) {
@@ -1702,8 +1690,8 @@ module.exports = require('./lib/spce');
                                             ? divisor * -1
                                             : divisor
 
-        numerator = rtrim(numerator.map(function(v){ return v/divisor}))
-        denominator = rtrim(denominator.map(function(v){ return v/divisor}))
+        numerator = righttrim(numerator.map(function(v){ return v/divisor}))
+        denominator = righttrim(denominator.map(function(v){ return v/divisor}))
 
         idx = '['+numerator.join(',')+']/['+denominator.join(',')+']'
 
@@ -1728,4 +1716,4 @@ module.exports = require('./lib/spce');
 
 }(this)
 
-},{"rats":6}]},{},[1]);
+},{"rationals":5}]},{},[1]);
