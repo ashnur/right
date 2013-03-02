@@ -1,6 +1,7 @@
 right
 =====
 
+DO NO TRY TO USE THIS YET.
 this is work in progress. when finished it will be an app of some kind. it will do math in the right way.
 i intend to use this as a proof.
 

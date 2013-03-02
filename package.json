@@ -1,6 +1,6 @@
 {
   "name": "right",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "main": "right",
   "dependencies": {
     "browserify": "*",
@@ -11,7 +11,25 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "mocha -u bdd -R spec"
+    "test": "mocha -u bdd -R spec",
+    "start": "node server.js"
   },
-  "license": "dafuq"
+  "license": "DAFUQ",
+  "readmeFilename": "README.md",
+  "gitHead": "258fc53c29ac835edaf9ba44dd84cce1aedf159b",
+  "description": "right =====",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ashnur/right.git"
+  },
+  "keywords": [
+    "geometry",
+    "linear algebra",
+    "rational trigonometry",
+    "trigonometry"
+  ],
+  "author": "ashnur"
 }
