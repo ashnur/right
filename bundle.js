@@ -24,8 +24,7 @@ void function(root){
 
             reslen = result.length
             for ( i = 0; i < reslen ; i++ ) {
-                console.log('o',result)
-                lines += result[i].toPolynom()
+                lines += result[i].toPolynom() + ' ::: ' + result[i].display()
                 lines +='<br/>'
             }
             out.innerHTML = lines
@@ -1279,11 +1278,12 @@ module.exports = require('./lib/spce');
 
     function ltrim(arr, maxDrop){
         if ( maxDrop == null ) maxDrop = degree(arr)
-                console.log(arr, maxDrop)
+        //console.log('lt1', arr, maxDrop)
         while ( arr.length > 1 && arr[0] === 0 && maxDrop > 0 ) {
             arr.shift()
             maxDrop--
         }
+        //console.log('lt2', arr, maxDrop)
         return arr
     }
 
@@ -1384,8 +1384,13 @@ module.exports = require('./lib/spce');
             , dc , dl
             , lc , ll
             , divisor
-            , raised = 0
+            , shifts = [[0],[0]]
+            , gcd
             ;
+        // if any of the elements is 1, return 1 imediatelly
+        if ( (a.length == 1 && a[0] == 1) || (b.length == 1 && b[0] == 1) ) {
+            return piper([1])
+        }
         // current element should be the smaller one
         // last element should be the larger one
         if ( degree(a) >= degree(b) ) {
@@ -1399,10 +1404,9 @@ module.exports = require('./lib/spce');
             // degrees of the last and the current elements
             dl = degree(r[i-1])
             dc = degree(r[i])
-
             // raise the current element to the same power as the last element
             r[i] = piper(r[i]).times(piper(alpha(dl-dc)))[0]
-            raised += dl-dc
+            shifts[i%2].push(dl-dc)
 
             // get the leading coefficient for the last and current element
             ll = r[i-1][r[i-1].length-1]
@@ -1437,7 +1441,7 @@ module.exports = require('./lib/spce');
         }
         // drop off all the smaller coefficients of 0 which
         // were introduced by raising
-        return piper(ltrim(r[i-1]), raised)
+        return piper(ltrim(r[i-1], shifts[(i-1)%2].reduce(function(x,y){return x + y})))
     }
 
     function hashify(){
@@ -1458,7 +1462,7 @@ module.exports = require('./lib/spce');
             return v.map(function(c,i){
                 var O, C, B, P, ac = Math.abs(c);
                 O =  ( i == v.length-1 || ac == 0 ) ? '' : c < 0 ? '-' : '+'
-                C = ( ac == 0 || ac == 1 ) ? '' : ac
+                C = ( ac == 0 || ( i > 0 && ac == 1 ) ) ? '' : ac
                 B = ( i == 0 || ac == 0 ) ? '' : (ac == 1 ? '' : '*')+α
                 P = (i == 0 || i == 1 || ac == 0) ? '' : '^'+i
                 return O + C + B + P
