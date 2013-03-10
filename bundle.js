@@ -22,12 +22,12 @@ void function(root){
                 return out.innerHTML = e.message
             }
 
-            reslen = result.length
-            for ( i = 0; i < reslen ; i++ ) {
-                lines += result[i].toPolynom() + ' ::: ' + result[i].display()
-                lines +='<br/>'
-            }
-            out.innerHTML = lines
+            //reslen = result.length
+            //for ( i = 0; i < reslen ; i++ ) {
+            //    lines += result[i].toPolynom() + ' ::: ' + result[i].display()
+            //    lines +='<br/>'
+            //}
+            out.innerHTML = result
             return
         }
 
@@ -624,389 +624,369 @@ void function(root){
 // directly checked out into a project's deps folder
 module.exports = require('./lib/prsr')
 
-},{"./lib/prsr":4}],4:[function(require,module,exports){void function(root){
+},{"./lib/prsr":4}],5:[function(require,module,exports){void function(root){
     "use strict"
 
-    var piper = require('polyrats')
-        , ONE, ZERO
-        , defaults = {}
-        , space = require('spce')
-        , symbols = {}
-        , tokens = []
-        , rat = require('rationals')
+    function make(type, value, from, to) {
+
+        // Make a token object.
+
+        return {
+            type: type
+            , value: value
+            , from: from
+            , to: to
+        }
+    }
+
+    function tokenizer(source){
+        var i = 0
+            , length = source.length
+            , token
+            , tokens = []
+            ;
+
+        while ( i < length ) {
+
+            tokenizer.types.forEach(function(type){
+                while ( token = type.check(source, i) ) {
+                    if ( ! token.ignore ) {
+                        tokens.push(make(type.name, token.value, i, token.to))
+                    }
+                    i = token.to
+                }
+            })
+
+        }
+
+        return tokens
+    }
+
+    tokenizer.types = []
+    tokenizer.add_type = function(name, check){
+        tokenizer.types.push({name: name, check: check})
+    }
+
+    if ( module !== undefined && module.exports ) {
+        module.exports = tokenizer
+    } else {
+        root.factory = tokenizer
+    }
+
+}(this)
+
+},{}],4:[function(require,module,exports){void function(root){
+    "use strict"
+
+    var tokenizer = require('./tokenizer.js')
+        , symbol_table = {}
+        , variables = {}
+        , token
+        , tokens
+        , token_nr
+        , polyrat = require('polyrats')
+        , ZERO =  polyrat([0])
+        , ONE =  polyrat([1])
+        , NEGONE =  polyrat([-1])
         ;
 
-    function tokenize(input){
-        return tokenizer.call(input)
-    }
-
-    function tokenizer(){
-
-        if ( typeof this === "undefined" ||  this === null ) {
-            return
-        }
-
-        var c, from, i=0
-            , length, n
-            , result = []
-            , str = '', _ref
+    tokenizer.add_type('variable', function(source, i){
+        var c = source.charAt(i)
+            , lead = /[a-zA-Z]/
+            , follow = /[a-zA-Z0-9_]/
+            , str = ''
             ;
 
-        length = this.length
-
-        function make(type, value){
-            return {
-                type: type,
-                value: value,
-                from: from,
-                to: i,
-                toString: function(){
-                    return value.toString()
-                }
-            }
+        function forward(){
+            str += c
+            i ++
         }
 
-        c = this.charAt(i)
-
-        while ( c ) {
-            from = i
-            if ( c === ' ' ) {
-                i += 1
-                c = this.charAt(i)
-            } else if ( /[a-zA-Z]/.test(c) ) {
-                str = c
-                i += 1
-                while ( true ) {
-                    c = this.charAt(i)
-                    if ( /[0-9a-zA-Z]/.test(c) ) {
-                        str += c
-                        i += 1
-                    } else {
-                        break
-                    }
-                }
-                result.push(make('var', str))
-            } else if ( /[0-9]/.test(c) ) {
-                str = c
-                i += 1
-                while ( true ) {
-                    c = this.charAt(i)
-                    if ( !/[0-9]/.test(c) ) {
-                        break
-                    }
-                    i += 1
-                    str += c
-                }
-                if ( /[a-zA-Z]/.test(c) ) {
-                    str += c
-                    i += 1
-                    throw 'Bad number'
-                }
-                n = parseInt(str, 10)
-                if ( isFinite(n) ) {
-                    result.push(make('number', n))
+        if ( lead.test(c) ) {
+            forward()
+            while ( true ) {
+                c = source.charAt(i);
+                if ( follow.test(c) ) {
+                    forward()
                 } else {
-                    throw 'Bad number'
+                    break
                 }
+            }
+            if ( str.length > 1 ) throw new Error('wtf')
+            variables[str] = polyrat([0,1])
+            return {value: str, to: i}
+        }
+        return false
+    })
+
+    tokenizer.add_type('number', function(source, i){
+        var c = source.charAt(i)
+            , digits = /[0-9]/
+            , letters = /[a-zA-Z]/
+            , str = ''
+            , n = 0
+            ;
+
+        function forward(){
+            str += c
+            i ++
+        }
+
+        if ( digits.test(c) ) {
+            forward()
+            while ( true ) {
+                c = source.charAt(i);
+                if ( digits.test(c) ) {
+                    forward()
+                } else {
+                    break
+                }
+            }
+            n = Number(str)
+            if ( ! isFinite(n) ) {
+                throw new Error('Bad number')
+            }
+            return {value: n, to: i}
+        }
+        return false
+    })
+
+    tokenizer.add_type('operator', function(source, i){
+        var c = source.charAt(i)
+            , not_alphanumeric = /[^0-9a-zA-Z]/
+            ;
+        i++
+        return not_alphanumeric.test(c) ? {value: c, to: i } : false
+
+    })
+
+    var original_symbol = {
+        nud: function () { throw new Error("Undefined. " + this.id) }
+        , led: function (left) { throw new Error("Missing operator. " + this.id) }
+    }
+
+
+    function itself(){ return this }
+
+    function symbol(id, bp){
+        var s = symbol_table[id]
+            ;
+        bp = bp || 0
+        if (s) {
+            if (bp >= s.lbp) { s.lbp = bp }
+        } else {
+            s = Object.create(original_symbol)
+            s.id = s.value = id
+            s.lbp = bp
+            symbol_table[id] = s
+        }
+        return s
+    }
+
+    function infix(id, bp, led){
+        var s = symbol(id, bp);
+        s.led = led || function (left) {
+            return expression(bp)
+        }
+        return s
+    }
+
+    function prefix(id, nud){
+        var s = symbol(id);
+        s.nud = nud || function(){
+            return expression(10)
+        }
+        return s
+    }
+
+    function both(id, bp, nud, led){
+        var s = symbol(id, bp);
+        s.nud = nud || function(){
+            return expression(10)
+        }
+        s.led = led || function (left) {
+            return expression(bp)
+        }
+        return s
+    }
+
+    function statement(s, f){
+        var x = symbol(s)
+        x.std = f
+        return x
+    }
+
+    function create_token(){
+        var token
+            , v
+            , t
+            , arity
+            , object
+            ;
+
+        t = tokens[token_nr]
+        if ( t === undefined ) return
+        v = t.value
+        arity = t.type
+        if (arity ===  "number") {
+            token = polyrat([t.value])
+            token.nud = itself
+        } else if (arity === "variable") {
+            token = variables[v]
+            token.name = v
+            token.nud = itself
+        } else {
+            if (arity === "operator") {
+                object = symbol_table[v]
+                if (!object) { throw new Error("Unknown operator. "+v) }
             } else {
-                i += 1
-                result.push(make('operator', c))
-                c = this.charAt(i)
+                throw new Error("Unexpected token. "+arity)
+            }
+            token = Object.create(object)
+            token.from  = t.from
+            token.to    = t.to
+            token.value = v
+            token.arity = arity
+            token.nr = token_nr
+        }
+        return token
+    }
+
+    function advance(id){
+
+        if (id && token.id !== id) { throw new Error("Expected '" + id + "'.") }
+        token = create_token()
+        token_nr++
+
+    }
+
+    function expression(rbp){
+        var left
+            , t = token
+            ;
+        if ( t === undefined ) return
+        if (t.std) {
+            advance()
+            return t.std()
+        }
+        advance()
+        left = t.nud()
+        while ( token && token.lbp > rbp ) {
+            t = token
+            advance()
+            left = t.led(left)
+        }
+        return left
+    }
+
+    function parse(source){
+        var a = []
+            , s
+            ;
+        a.toString = function(){
+            return this.join('\n')
+        }
+        token_nr = 0
+        tokens = tokenizer(source)
+        advance()
+        while ( token ) {
+            s = expression(0)
+            if ( s ) {
+                 a.push(s)
+            } else if ( s === undefined ) {
+                break
             }
         }
-        return result
+        return a.length === 0 ? null : a.length === 1 ? a[0] : a;
     }
 
-    function sybl(token, lvl, slv){
-        var x
-            ;
-        if ( lvl == null ) {
-            lvl = 1
-        }
-        this.lvl = lvl
-        this.toString = token.toString
-        x = extend(token, this)
-        switch ( x.type ) {
-            case  'var'  :
-                x = piper([0,1])
-                x.lvl = 1
-                break
-            case 'operator' :
-                x.slv = (slv != null)
-                                ? slv
-                                : (function() {
-                                    throw new Error('undefined operator')
-                                })
-                break
-            case  'number' :
-                x = piper([token.toString()])
-                x.lvl = 1
-                break
-        }
-        return x
-    }
+    symbol("(end)")
+    symbol("(variable)").nud = itself
+    symbol("(literal)").nud = itself
+    both("+", 3, function(){
+        var right = expression(3);
+        return right == null ? ZERO : right
+    }, function(left){
+        var right = expression(3);
+        return (left == null ? ZERO : left).plus((right == null ? ZERO : right))
+    })
 
-    function variable(name){
-        return space.push(name)
-    }
+    both("-", 3,function(){
+        var right = expression(3);
+        return NEGONE.times(right == null ? ZERO : right)
+    }, function(left){
+        var right = expression(3);
+        return (left == null ? ZERO : left).minus((right == null ? ZERO : right))
+    })
 
-    function symbolizer(token, lvl, slv){
-        return this[token.toString()] == null
-                        ? this[token.toString()] = new sybl(token, lvl, slv)
-                        : this[token.toString()]
-    }
+    both("*", 4,function(){
+        var right = expression(4);
+        return (right == null ? ONE : right)
+    }, function(left){
+        var right = expression(4);
+        return (left == null ? ONE : left).times((right == null ? ONE : right))
+    })
 
-    function ct(str){
-        var t
-            ;
-        t = tokenize(str)
-        if ( str.length < 2 ) {
-            return t[0]
-        } else {
-            return t
-        }
-    }
+    both("/", 4,function(){
+        var right = expression(4);
+        return ONE.per(right == null ? ONE : right)
+    }, function(left){
+        var right = expression(4);
+        return (left == null ? ONE : left).per((right == null ? ONE : right))
+    })
 
-    function literal(tok){
-        var ctok, r
-            ;
-        if ( typeof tok === 'string' ) {
-            ctok = ct(tok)
-        } else {
-            ctok = tok
-        }
-        r = symbolizer.call(symbols, ctok, 1, (function(right){
-            return right
-        }))
-        return r
-    }
+    both("^", 5, function(){
+        var right = expression(5);
+        return ONE.pow((right == null ? ZERO : right)[0][0])
+    }, function(left){
+        var right = expression(5);
+        return (left == null ? ONE : left).pow((right == null ? ZERO : right)[0][0])
+    })
 
-    ZERO = literal("0")
 
-    ONE = literal("1")
+    symbol(")", 0)
 
-    symbolizer.call(defaults, ct("\n"), -1, (function(l, r){
-        if ( l == null ) {
-            l = ZERO
-        }
-        return literal(l)
-    }))
-
-    symbolizer.call(defaults, ct("+"), 2, (function(l, r){
-        if ( l == null ) {
-            l = ZERO
-        }
-        if ( r == null ) {
-            r = ZERO
-        }
-        return literal(l.plus(r))
-    }))
-
-    symbolizer.call(defaults, ct("-"), 2, (function(l, r){
-        var x
-            ;
-        if ( l == null ) {
-            l = ZERO
-        }
-        if ( r == null ) {
-            r = ZERO
-        }
-        x = literal(l.minus(r))
-        return x
-    }))
-
-    symbolizer.call(defaults, ct("*"), 3, (function(l, r){
-        if ( l == null ) {
-            l = ONE
-        }
-        if ( r == null ) {
-            r = ONE
-        }
-        return literal(l.times(r))
-    }))
-
-    symbolizer.call(defaults, ct("/"), 3, (function(l, r){
-        if ( l == null ) {
-            l = ONE
-        }
-        if ( r == null ) {
-            r = ONE
-        }
-        return literal(l.per(r))
-    }))
-
-    symbolizer.call(defaults, ct("^"), 4, (function(l, r){
-        if ( l == null ) {
-            l = ONE
-        }
-        if ( r == null ) {
-            r = ZERO
-        }
-        //this is freakingly ugly
-        return literal(piper(l.pow(r[0][0])))
-    }))
-
-    symbolizer.call(defaults, ct(")"), 0, (function(l){
-        return literal(l)
-    }))
-
-    symbolizer.call(defaults, ct("("), 10, (function(l,r){
-        var e = expr(0)
-            ;
-        tokens.shift()
+    prefix("(", function(){
+        var e = expression(0);
+        advance(")")
         return e
-    }))
+    })
 
-    symbolizer.call(defaults, ct("="), 11, (function(l,r){
-        if ( l == null || r == null ) throw new Error ('equations have two sides' )
-        console.log(l,r)
-        return null
-    }))
 
-    function symbolize(tokens){
-        var token, i, len
-            ;
-        symbols = extend({}, defaults)
-        for ( i = 0, len = tokens.length; i < len; i++ ) {
-            token = tokens[i]
-            symbolizer.call(symbols, token)
-        }
-        return symbols
-    }
+    infix("=", 2, function(left){
+        return variables[left.name] = expression(1)
+    })
 
-    function extend(obj){
-        Array.prototype.forEach.call(Array.prototype.slice.call(arguments, 1), function(source){
-            var prop
-                ;
-            for ( prop in source ) {
-                obj[prop] = source[prop]
+
+    statement("variable", function () {
+        var a = [], n, t;
+        while (true) {
+            n = token;
+            if (n.arity !== "variable") {
+                n.error("Expected a new variable name.");
             }
-        })
-        return obj
-    }
-    function w(i){
-        var key =  (tokens[i] != null) ? tokens[i].toString() : void 0
-            ;
-        return symbols[key]
-    }
-
-    function c(i){
-        var key = tokens.splice(i, 1, null)[0]
-            ;
-        return symbols[key]
-    }
-
-    function x(i){
-        var key = tokens.splice(i, 1)[0]
-            ;
-        if ( key instanceof Int32Array ) {
-            return key
-        }
-        return symbols[key]
-    }
-
-    function g(i, o){
-        return tokens.splice(i, 1, o)
-    }
-
-    function t(i){
-        var _ref
-            ;
-        return (_ref = w(i)) != null ? _ref.type : void 0
-    }
-
-    function v(i){
-        var ref = w(i), ref1 = ref != null ? ref.lvl : void 0
-            ;
-        return ref1 != null ? ref1 : Number.MIN_VALUE
-    }
-
-    function isop(i){
-        return t(i) === 'operator'
-    }
-
-    function unry(i){
-        var operator, rhs, lhs = null, ret, paren = false
-            ;
-        operator = c(i)
-        if ( operator.lvl === 10 ) {
-            if ( i === 1 ) lhs = tokens.shift()
-            tokens.shift()
-            rhs = null
-            paren = true
-        } else if ( v(i+1) === 10 ) {
-            if ( i === 1 ) lhs = tokens.shift()
-            tokens.shift()
-            rhs = expr(0)
-            tokens.shift()
-            paren = true
-        } else if ( ! isop(i + 1) ) {
-            rhs = x(i + 1)
-        } else {
-            rhs = null
-        }
-        if ( paren ) {
-            ret = tokens.splice(0, 0, operator.slv(null, rhs))
-            if ( lhs !== null ) tokens.splice(0, 0, lhs)
-        } else {
-            ret = g(i, operator.slv(null, rhs))
-        }
-        return ret
-    }
-
-    function expr(lvl){
-        var l = isop(0) ? null : x(0), nextop, operator, r
-            ;
-
-        while ( isop(0) && v(0) > lvl ) {
-            while ( isop(1) && v(0) !== 10 && v(1) !== 10 ) {
-                unry(1)
-                if ( l == null ) {
-                    unry(0)
-                    l = x(0)
-                }
+            advance();
+            if (token.id === "=") {
+                t = token;
+                advance("=");
+                t.first = n;
+                t.second = expression(0);
+                t.arity = "binary";
+                a.push(t);
             }
-            if ( isop(0) ) {
-                operator = x(0)
-                if ( operator.lvl !== 10 ) {
-                    r = !isop(0) ? w(0) : null
-                    nextop = r != null ? 1 : 0
-                }
-                if ( v(nextop) <= operator.lvl ) {
-                    if (r != null) {
-                        x(0)
-                    }
-                } else {
-                    r = expr(operator.lvl)
-                }
-                l = operator.slv(l, r)
+            if (token.id !== ",") {
+                break;
             }
+            advance(",");
         }
-        return l
-    }
+        advance(";");
+        return a.length === 0 ? null : a.length === 1 ? a[0] : a;
+    })
 
-    function parse(input){
-        var counter, e
-            ;
-        tokens = tokenize(input)
-        symbols = symbolize(tokens)
-        space.del('input')
-        counter = 0
-        while ( tokens.length > 0 ) {
-            e = expr(-1)
-            space.push('input', e)
-            if ( typeof tokens[0] !== 'undefined'
-                && typeof symbols[tokens[0].value] !== 'undefined'
-                && symbols[tokens[0].value].lvl === -1 ) {
-                    tokens.shift()
-            }
-            if (++counter > 100) {
-                throw new Error('possible infinite loop')
-            }
-        }
-        return space.get('input')
-    }
-    if ( typeof module != 'undefined' && module.exports ) {
+    both("\n", 0, function(){return null} , function(left){return left})
+
+
+    if ( module !== undefined && module.exports ) {
         module.exports = parse
     } else {
         root.factory = parse
@@ -1014,237 +994,11 @@ module.exports = require('./lib/prsr')
 
 }(this)
 
-},{"rationals":5,"polyrats":6,"spce":7}],6:[function(require,module,exports){// This file is just added for convenience so this repository can be
+},{"./tokenizer.js":5,"polyrats":6}],6:[function(require,module,exports){// This file is just added for convenience so this repository can be
 // directly checked out into a project's deps folder
 module.exports = require('./lib/polyrats');
 
-},{"./lib/polyrats":8}],5:[function(require,module,exports){// This file is just added for convenience so this repository can be
-// directly checked out into a project's deps folder
-module.exports = require('./lib/rats');
-
-},{"./lib/rats":9}],7:[function(require,module,exports){// This file is just added for convenience so this repository can be
-// directly checked out into a project's deps folder
-module.exports = require('./lib/spce');
-
-},{"./lib/spce":10}],9:[function(require,module,exports){void function(root){
-    "use strict"
-
-    var numbers = {};
-
-    function isInt(input){
-        return typeof input !== 'object' && parseInt(input, 10) == input
-    }
-
-
-    function checkInput(input){
-        if ( input instanceof Int32Array && input.byteLength === 8 ) {
-            return input
-        }
-        return rat(input)
-    }
-
-    function gcd(a, b){
-        var t;
-        a = Math.abs(a)
-        b = Math.abs(b)
-        while (b > 0) {
-            t = b
-            b = a % b
-            a = t
-        }
-        return a
-    }
-
-    function hashify(){
-        return this[0]+'/'+this[1]
-    }
-
-    function display(){
-        return ''+this[0]+(this[1]!=1?'/'+this[1]:'')
-    }
-
-    function val(){
-        return this[0]/this[1]
-    }
-
-    function plus(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1]+x[0]*this[1], this[1]*x[1])
-    }
-
-    function minus(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1]-x[0]*this[1], this[1]*x[1])
-    }
-
-    function times(x){
-        x = checkInput(x)
-        return rat(this[0]*x[0], this[1]*x[1])
-    }
-
-    function per(x){
-        x = checkInput(x)
-        return rat(this[0]*x[1], x[0]*this[1])
-    }
-
-    function rat(numerator, denominator){
-
-        var index, divisor;
-
-        if ( ! isInt(numerator) ) {
-            throw new Error('invalid argument '+numerator+' ('+(typeof numerator)+')')
-        } else if ( typeof numerator === 'string' ) {
-            numerator = parseInt(numerator, 10)
-        }
-
-        if ( ! isInt(denominator) ) {
-            denominator = 1
-        } else if ( typeof denominator === 'string' ) {
-            denominator = parseInt(denominator, 10)
-        }
-
-        if ( denominator == 0 ) {
-            throw new Error('the denominator must not equal 0')
-        }
-
-        divisor = gcd(numerator, denominator)
-        if ( Math.abs(divisor) > 1 ) {
-            numerator = numerator / divisor
-            denominator = denominator / divisor
-        }
-
-        if ( denominator < 0 ) {
-            numerator *= -1
-            denominator *= -1
-        }
-
-        index = hashify.call([numerator, denominator])
-
-        if ( numbers[index] === undefined ) {
-            numbers[index] = new Int32Array(2)
-            numbers[index][0] = numerator
-            numbers[index][1] = denominator
-            numbers[index].toString = hashify
-            numbers[index].display = display
-            numbers[index].val = val
-            numbers[index].plus = plus
-            numbers[index].minus = minus
-            numbers[index].times = times
-            numbers[index].per = per
-        }
-
-        return numbers[index]
-
-    }
-
-    rat.isInt = isInt
-    rat.checkInput = checkInput
-    rat.gcd = gcd
-
-    if ( typeof module !== 'undefined' && module.exports ) {
-        module.exports = rat
-    } else {
-        root.factory = rat
-    }
-
-}(this)
-
-},{}],10:[function(require,module,exports){void function(root){
-
-    var spce,  expr, newkey, privkeys, variable, variables
-        ;
-
-    spce = {
-        init: function () {
-            return this
-        }
-        , add : function(value) {
-            return variable(newkey(), value)
-        }
-
-        , get : function(key) {
-            return variables[key]
-        }
-
-        , del : function(key) {
-            return variables[key] = void 0
-        }
-
-        , push : function(key, value) {
-            var arr
-                ;
-            arr = variables[key]
-            if (!(arr != null)) {
-                arr = []
-            }
-            arr.push(value)
-            return variables[key] = arr
-        }
-
-        , variable : variable
-
-        , variables : variables
-
-    }
-
-    privkeys = []
-
-    //expr = luma.factory({
-    //    init: function() {
-
-    //        function expr(value) {
-    //            this.body = function() {
-    //                return value
-    //            }
-    //        }
-
-    //        expr.prototype.eq = []
-
-    //        expr.prototype.gt = []
-
-    //        expr.prototype.lt = []
-
-    //        expr.prototype.body = []
-
-    //        expr.prototype.func = function() {
-    //            var vars
-    //            vars = 1 <= arguments.length ? Array.prototype.slice.call(arguments, 0) : []
-    //        }
-
-
-    //        return expr
-    //    }
-
-    //})
-
-    newkey = function() {
-        var s
-            ;
-        s = 'var' + privkeys.length
-        privkeys.push(s)
-        return s
-    }
-
-    variables = {}
-
-    variable = function(key, value) {
-        if (typeof key === 'undefined' || typeof value === 'undefined') {
-            return null
-        }
-        if (!(variables[key] != null)) {
-            variables[key] = value
-        }
-        return variables[key]
-    }
-
-    if ( typeof module != 'undefined' && module.exports ) {
-        module.exports = spce
-    } else {
-        root.factory = spce
-    }
-}(this)
-
-},{}],8:[function(require,module,exports){void function(root){
+},{"./lib/polyrats":7}],7:[function(require,module,exports){void function(root){
     "use strict"
 
     var pns = {}
@@ -1716,4 +1470,131 @@ module.exports = require('./lib/spce');
 
 }(this)
 
-},{"rationals":5}]},{},[1]);
+},{"rationals":8}],8:[function(require,module,exports){// This file is just added for convenience so this repository can be
+// directly checked out into a project's deps folder
+module.exports = require('./lib/rats');
+
+},{"./lib/rats":9}],9:[function(require,module,exports){void function(root){
+    "use strict"
+
+    var numbers = {};
+
+    function isInt(input){
+        return typeof input !== 'object' && parseInt(input, 10) == input
+    }
+
+
+    function checkInput(input){
+        if ( input instanceof Int32Array && input.byteLength === 8 ) {
+            return input
+        }
+        return rat(input)
+    }
+
+    function gcd(a, b){
+        var t;
+        a = Math.abs(a)
+        b = Math.abs(b)
+        while (b > 0) {
+            t = b
+            b = a % b
+            a = t
+        }
+        return a
+    }
+
+    function hashify(){
+        return this[0]+'/'+this[1]
+    }
+
+    function display(){
+        return ''+this[0]+(this[1]!=1?'/'+this[1]:'')
+    }
+
+    function val(){
+        return this[0]/this[1]
+    }
+
+    function plus(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1]+x[0]*this[1], this[1]*x[1])
+    }
+
+    function minus(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1]-x[0]*this[1], this[1]*x[1])
+    }
+
+    function times(x){
+        x = checkInput(x)
+        return rat(this[0]*x[0], this[1]*x[1])
+    }
+
+    function per(x){
+        x = checkInput(x)
+        return rat(this[0]*x[1], x[0]*this[1])
+    }
+
+    function rat(numerator, denominator){
+
+        var index, divisor;
+
+        if ( ! isInt(numerator) ) {
+            throw new Error('invalid argument '+numerator+' ('+(typeof numerator)+')')
+        } else if ( typeof numerator === 'string' ) {
+            numerator = parseInt(numerator, 10)
+        }
+
+        if ( ! isInt(denominator) ) {
+            denominator = 1
+        } else if ( typeof denominator === 'string' ) {
+            denominator = parseInt(denominator, 10)
+        }
+
+        if ( denominator == 0 ) {
+            throw new Error('the denominator must not equal 0')
+        }
+
+        divisor = gcd(numerator, denominator)
+        if ( Math.abs(divisor) > 1 ) {
+            numerator = numerator / divisor
+            denominator = denominator / divisor
+        }
+
+        if ( denominator < 0 ) {
+            numerator *= -1
+            denominator *= -1
+        }
+
+        index = hashify.call([numerator, denominator])
+
+        if ( numbers[index] === undefined ) {
+            numbers[index] = new Int32Array(2)
+            numbers[index][0] = numerator
+            numbers[index][1] = denominator
+            numbers[index].toString = hashify
+            numbers[index].display = display
+            numbers[index].val = val
+            numbers[index].plus = plus
+            numbers[index].minus = minus
+            numbers[index].times = times
+            numbers[index].per = per
+        }
+
+        return numbers[index]
+
+    }
+
+    rat.isInt = isInt
+    rat.checkInput = checkInput
+    rat.gcd = gcd
+
+    if ( typeof module !== 'undefined' && module.exports ) {
+        module.exports = rat
+    } else {
+        root.factory = rat
+    }
+
+}(this)
+
+},{}]},{},[1]);

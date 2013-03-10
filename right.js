@@ -22,12 +22,12 @@ void function(root){
                 return out.innerHTML = e.message
             }
 
-            reslen = result.length
-            for ( i = 0; i < reslen ; i++ ) {
-                lines += result[i].toPolynom() + ' ::: ' + result[i].display()
-                lines +='<br/>'
-            }
-            out.innerHTML = lines
+            //reslen = result.length
+            //for ( i = 0; i < reslen ; i++ ) {
+            //    lines += result[i].toPolynom() + ' ::: ' + result[i].display()
+            //    lines +='<br/>'
+            //}
+            out.innerHTML = result
             return
         }
 
