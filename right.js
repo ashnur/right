@@ -17,7 +17,7 @@ void function(root){
                 , out = document.getElementById('output')
                 ;
             try {
-                result = prsr(e.currentTarget.value + "\n")
+                result = prsr(e.currentTarget.value)
             } catch (e) {
                 return out.innerHTML = e.message
             }

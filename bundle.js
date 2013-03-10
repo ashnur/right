@@ -17,7 +17,7 @@ void function(root){
                 , out = document.getElementById('output')
                 ;
             try {
-                result = prsr(e.currentTarget.value + "\n")
+                result = prsr(e.currentTarget.value)
             } catch (e) {
                 return out.innerHTML = e.message
             }
@@ -641,21 +641,32 @@ module.exports = require('./lib/prsr')
 
     function tokenizer(source){
         var i = 0
+            , j
             , length = source.length
             , token
             , tokens = []
+            , typecount = tokenizer.types.length
+            , type
             ;
 
         while ( i < length ) {
-
-            tokenizer.types.forEach(function(type){
-                while ( token = type.check(source, i) ) {
+            j = 0
+            while ( j < typecount ) {
+                type = tokenizer.types[j]
+                token = type.check(source, i, type, token)
+                if ( token ) {
                     if ( ! token.ignore ) {
                         tokens.push(make(type.name, token.value, i, token.to))
+                        i = token.to
+                    } else {
+                        i++
                     }
-                    i = token.to
+                    j = 0
+                } else {
+                    j++
                 }
-            })
+
+            }
 
         }
 
@@ -689,6 +700,16 @@ module.exports = require('./lib/prsr')
         , ONE =  polyrat([1])
         , NEGONE =  polyrat([-1])
         ;
+
+    tokenizer.add_type('ignore', function(source, i){
+        var c = source.charAt(i)
+            // I will not include the "enter",
+            // or more correctly the Line Feed character ( 000A )
+            , whitespacetoignore = /[\u0009\u000B\u000C\u000D\u0020\u0085\u00A0\u1680\u180E\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000]/
+            ;
+        return whitespacetoignore.test(c) ? {ignore:true} : false
+
+    })
 
     tokenizer.add_type('variable', function(source, i){
         var c = source.charAt(i)
